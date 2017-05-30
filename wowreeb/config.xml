@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wowreeb>
+  <Realm Name="Classic (Elysium)">
+    <Exe Path="f:\wow 1.12.1\WoW.exe" SHA256="b4756d38ef207c02ed651f4952bd89a70b4857b73a33413339e1b285b28d2dc7" />
+    <AuthServer Host="logon.elysium-project.org" />
+    <Fov Value="3.14159" />
+  </Realm>
+
+  <Realm Name="Classic (localhost)">
+    <Exe Path="f:\wow 1.12.1\WoW.exe" SHA256="b4756d38ef207c02ed651f4952bd89a70b4857b73a33413339e1b285b28d2dc7" />
+    <AuthServer Host="localhost" />
+    <Fov Value="3.14159" />
+  </Realm>
+
+  <Realm Name="TBC (localhost)">
+    <Exe Path="f:\wow 2.4.3\Wow.exe" SHA256="8f8d7f4cf3909e61fd34b09df9c9b56c21aec76a9ad1883353f1fa5d9b8411e2" />
+    <AuthServer Host="localhost" />
+    <Fov Value="3.14159" />
+  </Realm>
+
+  <Realm Name="TBC (Vengeance)">
+    <Exe Path="f:\wow 2.4.3\Wow.exe" SHA256="8f8d7f4cf3909e61fd34b09df9c9b56c21aec76a9ad1883353f1fa5d9b8411e2" />
+    <AuthServer Host="logon.vengeancewow.com" />
+    <Fov Value="3.14159" />
+  </Realm>
+
+  <Realm Name="WotLK (Gamer District)">
+    <Exe Path="f:\wow 3.3.5\Wow.exe" SHA256="aa63a5750d60ef16746c686b3d5e26876d98953eab08b1c026cd0faf78e88cb8" />
+    <AuthServer Host="login.gamer-district.org" />
+    <Fov Value="3.14159" />
+  </Realm>
+
+  <Realm Name="WotLK (Dalaran)">
+    <Exe Path="f:\wow 3.3.5\Wow.exe" SHA256="aa63a5750d60ef16746c686b3d5e26876d98953eab08b1c026cd0faf78e88cb8" />
+    <AuthServer Host="logon.dalaran-AuthServer.org" />
+    <Fov Value="3.14159" />
+  </Realm>
+
+  <Realm Name="WotLK (localhost)">
+    <Exe Path="f:\wow 3.3.5\Wow.exe" SHA256="aa63a5750d60ef16746c686b3d5e26876d98953eab08b1c026cd0faf78e88cb8" />
+    <AuthServer Host="localhost" />
+    <Fov Value="3.14159" />
+  </Realm>
+  
+  <Realm Name="Cata (Atlantiss)">
+    <Exe Path="f:\wow 4.3.4\Wow.exe" SHA256="92a41bacae253fdc0ffae152da81f8939f2be527620cfee36f901ac9f00faf79" />
+    <AuthServer Host="play.atlantiss.eu" />
+  </Realm>
+</wowreeb>
