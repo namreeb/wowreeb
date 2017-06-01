@@ -164,8 +164,6 @@ const char *InitializeHook(hadesmem::PatchDetourBase *detour, void *arg, char *A
 
 void ApplyClientInitHook(char *authServer, float fov)
 {
-    MessageBoxA(nullptr, "Initialize", "DEBUG", 0);
-
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
     auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(GetAddress(Version::TBC, Offset::Initialize));
     auto initializeDetour = new hadesmem::PatchDetour<InitializeT>(proc, initializeOrig,
