@@ -25,6 +25,68 @@
 
 #include <hadesmem/patcher.hpp>
 
+#include <cstdint>
+
+namespace
+{
+enum class Version
+{
+    Classic = 0,
+    TBC,
+    WotLK,
+    Cata,
+    Total
+};
+
+enum class Offset
+{
+    CVar__Set = 0,
+    RealmListCVar,
+    Initialize,
+    FoV,
+    Total
+};
+
+PVOID GetAddress(Version version, Offset offset)
+{
+    static constexpr std::uint32_t offsets[static_cast<int>(Version::Total)][static_cast<int>(Offset::Total)] =
+    {
+        // Classic
+        {
+            0x23DF50,
+            0x82812C,
+            0x1AB680,
+            0x4089B4
+        },
+        // TBC
+        {
+            0x23F6C0,
+            0x943330,
+            0x1B3D00,
+            0x4B5A04
+        },
+        // WotLK
+        {
+            0x3668C0,
+            0x879D00,
+            0x2B0BF0,
+            0x5E8D88
+        },
+        // Cata
+        {
+            0x2553B0,
+            0x9BE800,
+            0x0CEDF0,
+            0x00, // not supported.  let me know if anyone actually wants this
+        }
+    };
+
+    auto const baseAddress = reinterpret_cast<std::uint8_t *>(::GetModuleHandle(nullptr));
+
+    return baseAddress + offsets[static_cast<int>(version)][static_cast<int>(offset)];
+}
+}
+
 namespace Classic
 {
 class CVar {};
@@ -37,8 +99,8 @@ const char *InitializeHook(hadesmem::PatchDetourBase *detour, void *pThis, char 
     auto const initialize = detour->GetTrampolineT<InitializeT>();
     auto const ret = (*initialize)(pThis);
 
-    auto const cvar = *reinterpret_cast<CVar **>(0xC2812C);
-    auto const set = hadesmem::detail::AliasCast<SetT>(0x63DF50);
+    auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::Classic, Offset::RealmListCVar));
+    auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::Classic, Offset::CVar__Set));
 
     auto const pDone = authServer + strlen(authServer) + 1;
 
@@ -54,7 +116,7 @@ const char *InitializeHook(hadesmem::PatchDetourBase *detour, void *pThis, char 
 void ApplyClientInitHook(char *authServer, float fov)
 {
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(0x5AB680);
+    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(GetAddress(Version::Classic, Offset::Initialize));
     auto initializeDetour = new hadesmem::PatchDetour<InitializeT>(proc, initializeOrig,
         [authServer] (hadesmem::PatchDetourBase *detour, void *pThis)
     {
@@ -65,7 +127,7 @@ void ApplyClientInitHook(char *authServer, float fov)
 
     if (fov > 0.01f)
     {
-        auto const pFov = reinterpret_cast<PVOID>(0x8089B4);
+        auto const pFov = GetAddress(Version::Classic, Offset::FoV);
         std::vector<std::uint8_t> patchData(sizeof(fov));
         memcpy(&patchData[0], &fov, sizeof(fov));
         auto patch = new hadesmem::PatchRaw(proc, pFov, patchData);
@@ -86,8 +148,8 @@ const char *InitializeHook(hadesmem::PatchDetourBase *detour, void *arg, char *A
     auto const initialize = detour->GetTrampolineT<InitializeT>();
     auto const ret = (*initialize)(arg);
 
-    auto const cvar = *reinterpret_cast<CVar **>(0xD43330);
-    auto const set = hadesmem::detail::AliasCast<SetT>(0x63F6C0);
+    auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::TBC, Offset::RealmListCVar));
+    auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::TBC, Offset::CVar__Set));
 
     auto const pDone = AuthServer + strlen(AuthServer) + 1;
 
@@ -102,8 +164,10 @@ const char *InitializeHook(hadesmem::PatchDetourBase *detour, void *arg, char *A
 
 void ApplyClientInitHook(char *authServer, float fov)
 {
+    MessageBoxA(nullptr, "Initialize", "DEBUG", 0);
+
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(0x5B3D00);
+    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(GetAddress(Version::TBC, Offset::Initialize));
     auto initializeDetour = new hadesmem::PatchDetour<InitializeT>(proc, initializeOrig,
         [authServer] (hadesmem::PatchDetourBase *detour, void *pThis)
     {
@@ -114,7 +178,7 @@ void ApplyClientInitHook(char *authServer, float fov)
 
     if (fov > 0.01f)
     {
-        auto const pFov = reinterpret_cast<PVOID>(0x8B5A04);
+        auto const pFov = GetAddress(Version::TBC, Offset::FoV);
         std::vector<std::uint8_t> patchData(sizeof(fov));
         memcpy(&patchData[0], &fov, sizeof(fov));
         auto patch = new hadesmem::PatchRaw(proc, pFov, patchData);
@@ -135,8 +199,8 @@ void InitializeHook(hadesmem::PatchDetourBase *detour, void *arg, const char *lo
     auto const initialize = detour->GetTrampolineT<InitializeT>();
     (*initialize)(arg, locale);
 
-    auto const cvar = *reinterpret_cast<CVar **>(0xC79D00);
-    auto const set = hadesmem::detail::AliasCast<SetT>(0x7668C0);
+    auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::WotLK, Offset::RealmListCVar));
+    auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::WotLK, Offset::CVar__Set));
 
     auto const pDone = authServer + strlen(authServer) + 1;
 
@@ -150,7 +214,7 @@ void InitializeHook(hadesmem::PatchDetourBase *detour, void *arg, const char *lo
 void ApplyClientInitHook(char *authServer, float fov)
 {
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(0x6B0BF0);
+    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(GetAddress(Version::WotLK, Offset::Initialize));
     auto initializeDetour = new hadesmem::PatchDetour<InitializeT>(proc, initializeOrig,
         [authServer] (hadesmem::PatchDetourBase *detour, void *arg, const char *locale)
     {
@@ -161,7 +225,7 @@ void ApplyClientInitHook(char *authServer, float fov)
 
     if (fov > 0.01f)
     {
-        auto const pFov = reinterpret_cast<PVOID>(0x9E8D88);
+        auto const pFov = GetAddress(Version::WotLK, Offset::FoV);
         std::vector<std::uint8_t> patchData(sizeof(fov));
         memcpy(&patchData[0], &fov, sizeof(fov));
         auto patch = new hadesmem::PatchRaw(proc, pFov, patchData);
@@ -182,8 +246,8 @@ void InitializeHook(hadesmem::PatchDetourBase *detour, char *authServer)
     auto const initialize = detour->GetTrampolineT<InitializeT>();
     (*initialize)();
 
-    auto const cvar = *reinterpret_cast<CVar **>(0xDBE800);
-    auto const set = hadesmem::detail::AliasCast<SetT>(0x6553B0);
+    auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::Cata, Offset::RealmListCVar));
+    auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::Cata, Offset::CVar__Set));
 
     auto const pDone = authServer + strlen(authServer) + 1;
 
@@ -197,7 +261,7 @@ void InitializeHook(hadesmem::PatchDetourBase *detour, char *authServer)
 void ApplyClientInitHook(char *authServer, float fov)
 {
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(0x4CEDF0);
+    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(GetAddress(Version::Cata, Offset::Initialize));
     auto initializeDetour = new hadesmem::PatchDetour<InitializeT>(proc, initializeOrig,
         [authServer](hadesmem::PatchDetourBase *detour)
     {

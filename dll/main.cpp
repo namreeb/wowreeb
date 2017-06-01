@@ -23,6 +23,8 @@
 
 */
 
+#include "InitializeHooks.hpp"
+
 #include <hadesmem/injector.hpp>
 #include <hadesmem/call.hpp>
 #include <hadesmem/alloc.hpp>
@@ -86,6 +88,32 @@ void EjectionPoll(hadesmem::Process process, HMODULE dll, PVOID remoteBuffer, si
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (true);
+}
+
+#define THROW_IF(expr, message) if (expr) { throw std::exception(message); }
+
+unsigned int GetBuild()
+{
+    wchar_t filename[255];
+    DWORD size = sizeof(filename) / sizeof(filename[0]);
+
+    THROW_IF(!QueryFullProcessImageName(::GetCurrentProcess(), 0, reinterpret_cast<LPWSTR>(&filename), &size), "QueryFullProcessImageName failed");
+
+    size = GetFileVersionInfoSize(filename, nullptr);
+
+    THROW_IF(!size, "Bad VersionInfo size");
+
+    std::vector<std::uint8_t> versionInfo(size);
+
+    THROW_IF(!::GetFileVersionInfo(filename, 0, size, &versionInfo[0]), "GetFileVersionInfo failed");
+
+    VS_FIXEDFILEINFO *verInfo;
+    UINT length;
+
+    THROW_IF(!::VerQueryValue(&versionInfo[0], L"\\", reinterpret_cast<LPVOID *>(&verInfo), &length), "VerQueryValue failed");
+    THROW_IF(verInfo->dwSignature != 0xFEEF04BD, "Incorrect version signature");
+
+    return static_cast<unsigned int>(verInfo->dwFileVersionLS & 0xFFFF);
 }
 }
 
@@ -167,4 +195,39 @@ extern "C" __declspec(dllexport) unsigned int Inject(const wchar_t *exePath, con
     }
 
     return 0;
+}
+
+#define BUILD_CLASSIC   5875
+#define BUILD_TBC       8606
+#define BUILD_WOTLK     12340
+#define BUILD_CATA      15595
+
+// this function is executed in the context of the wow process
+extern "C" __declspec(dllexport) unsigned int Load(char *authServer, float fov)
+{
+    if (!authServer)
+        return EXIT_FAILURE;
+
+    auto const build = GetBuild();
+
+    switch (build)
+    {
+        case BUILD_CLASSIC:
+            Classic::ApplyClientInitHook(authServer, fov);
+            break;
+        case BUILD_TBC:
+            TBC::ApplyClientInitHook(authServer, fov);
+            break;
+        case BUILD_WOTLK:
+            WOTLK::ApplyClientInitHook(authServer, fov);
+            break;
+        case BUILD_CATA:
+            Cata::ApplyClientInitHook(authServer, fov);
+            break;
+        default:
+            assert(false);
+            break;
+    }
+
+    return EXIT_SUCCESS;
 }

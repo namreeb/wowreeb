@@ -23,8 +23,6 @@
 
 */
 
-#include "InitializeHooks.hpp"
-
 #include <Windows.h>
 #include <metahost.h>
 #include <CorError.h>
@@ -34,15 +32,9 @@
 #include <cassert>
 #include <cstdint>
 
-#define BUILD_CLASSIC   5875
-#define BUILD_TBC       8606
-#define BUILD_WOTLK     12340
-#define BUILD_CATA      15595
-
 #pragma comment(lib, "mscoree.lib")
 
 #define MB(s) MessageBox(nullptr, s, nullptr, MB_OK)
-#define THROW_IF(expr, message) if (expr) { throw std::exception(message); }
 
 namespace
 {
@@ -95,7 +87,7 @@ unsigned __stdcall ThreadMain(const wchar_t *dllLocation)
     // Execute the Main func in the domain manager, this will block indefinitely.  Hence why we're in our own thread
     // TODO: Add parameters for type and method names
     DWORD dwRet = 0;
-    hr = clrHost->ExecuteInDefaultAppDomain(dllLocation, L"wowreeb.DomainManager.EntryPoint", L"Main", L"", &dwRet);
+    hr = clrHost->ExecuteInDefaultAppDomain(dllLocation, L"wcs.DomainManager.EntryPoint", L"Main", L"", &dwRet);
 
     delete[] dllLocation;
 
@@ -144,60 +136,6 @@ HMODULE GetCurrentModule()
     GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCTSTR>(GetCurrentModule), &hModule);
     return hModule;
 }
-
-unsigned int GetBuild()
-{
-    wchar_t filename[255];
-    DWORD size = sizeof(filename)/sizeof(filename[0]);
-
-    THROW_IF(!QueryFullProcessImageName(::GetCurrentProcess(), 0, reinterpret_cast<LPWSTR>(&filename), &size), "QueryFullProcessImageName failed");
-
-    size = GetFileVersionInfoSize(filename, nullptr);
-
-    THROW_IF(!size, "Bad VersionInfo size");
-
-    std::vector<std::uint8_t> versionInfo(size);
-
-    THROW_IF(!::GetFileVersionInfo(filename, 0, size, &versionInfo[0]), "GetFileVersionInfo failed");
-
-    VS_FIXEDFILEINFO *verInfo;
-    UINT length;
-
-    THROW_IF(!::VerQueryValue(&versionInfo[0], L"\\", reinterpret_cast<LPVOID *>(&verInfo), &length), "VerQueryValue failed");
-    THROW_IF(verInfo->dwSignature != 0xFEEF04BD, "Incorrect version signature");
-
-    return static_cast<unsigned int>(verInfo->dwFileVersionLS & 0xFFFF);
-}
-}
-
-// this function is executed in the context of the wow process
-extern "C" __declspec(dllexport) unsigned int Load(char *authServer, float fov)
-{
-    if (!authServer)
-        return EXIT_FAILURE;
-
-    auto const build = GetBuild();
-
-    switch (build)
-    {
-        case BUILD_CLASSIC:
-            Classic::ApplyClientInitHook(authServer, fov);
-            break;
-        case BUILD_TBC:
-            TBC::ApplyClientInitHook(authServer, fov);
-            break;
-        case BUILD_WOTLK:
-            WOTLK::ApplyClientInitHook(authServer, fov);
-            break;
-        case BUILD_CATA:
-            Cata::ApplyClientInitHook(authServer, fov);
-            break;
-        default:
-            assert(false);
-            break;
-    }
-
-    return EXIT_SUCCESS;
 }
 
 // this function is executed in the context of the wow process
