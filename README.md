@@ -9,7 +9,7 @@ The launcher app is written in C# and includes a helper library written in C++. 
 
 ## Security
 
-Though the included helper DLL (wowreeb.dll) is injected into the World of Warcrat process, it will eject itself once its initialization is complete.  Therefore the DLL itself should not be detectable by Warden.
+Though the included helper DLL (wowreeb.dll) is injected into the World of Warcraft process, it will eject itself once its initialization is complete.  Therefore the DLL itself should not be detectable by Warden.
 
 **HOWEVER** if your configuration file defines a change to the FoV value, this change **is detectable** by Warden.  No reasonable server developer would bother to detect this, but use at your own risk!
 
