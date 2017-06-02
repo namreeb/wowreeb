@@ -118,7 +118,8 @@ unsigned int GetBuild()
 }
 
 // this function is executed in the context of the launcher process
-extern "C" __declspec(dllexport) unsigned int Inject(const wchar_t *exePath, const wchar_t *dllPath, const char *authServer, float fov, const wchar_t *domainDll)
+extern "C" __declspec(dllexport) unsigned int Inject(const wchar_t *exePath, const wchar_t *dllPath,
+    const char *authServer, float fov, const wchar_t *clrDll, const wchar_t *clrTypeName, const wchar_t *clrMethodName)
 {
     const std::vector<std::wstring> createArgs { L"-console" };
     const std::wstring exe(exePath);
@@ -150,9 +151,9 @@ extern "C" __declspec(dllexport) unsigned int Inject(const wchar_t *exePath, con
         hadesmem::Call(process, func, hadesmem::CallConv::kDefault, remoteBuffer, fov);
 
         // if a CLR domain manager dll was specified, create a CLR instance in the remote process
-        if (!!domainDll && !!*domainDll)
+        if (!!clrDll && !!*clrDll)
         {
-            std::experimental::filesystem::path domainDllPath(domainDll);
+            std::experimental::filesystem::path domainDllPath(clrDll);
 
             // if the path is relative, make it relative to the wow executable
             if (domainDllPath.is_relative())
@@ -160,19 +161,29 @@ extern "C" __declspec(dllexport) unsigned int Inject(const wchar_t *exePath, con
 
             auto const domainFullPath = domainDllPath.wstring();
 
-            // allocate enough memory in the remote process to write the path to the dll
+            // allocate enough memory in the remote process to write the path to the dll, type name, and method name
             auto const clrPathBufferSize = sizeof(wchar_t) * (domainFullPath.length() + 1);
             auto const clrPathBuffer = hadesmem::Alloc(process, clrPathBufferSize);
 
-            // write the path to the dll
+            auto const typeNameBufferSize = sizeof(wchar_t) * (wcslen(clrTypeName) + 1);
+            auto const typeNameBuffer = hadesmem::Alloc(process, typeNameBufferSize);
+
+            auto const methodNameBufferSize = sizeof(wchar_t) * (wcslen(clrMethodName) + 1);
+            auto const methodNameBuffer = hadesmem::Alloc(process, methodNameBufferSize);
+
+            // write the path to the dll, the type name, and the method name
             hadesmem::Write(process, clrPathBuffer, domainFullPath.c_str(), clrPathBufferSize);
+            hadesmem::Write(process, typeNameBuffer, clrTypeName, typeNameBufferSize);
+            hadesmem::Write(process, methodNameBuffer, clrMethodName, methodNameBufferSize);
 
             // call our CLR load in the remote process
-            auto const clrLoad = reinterpret_cast<unsigned int(*)(PVOID)>(hadesmem::FindProcedure(process, module, "CLRLoad"));
-            hadesmem::Call(process, clrLoad, hadesmem::CallConv::kDefault, clrPathBuffer);
+            auto const clrLoad = reinterpret_cast<unsigned int(*)(PVOID, PVOID, PVOID)>(hadesmem::FindProcedure(process, module, "CLRLoad"));
+            hadesmem::Call(process, clrLoad, hadesmem::CallConv::kDefault, clrPathBuffer, typeNameBuffer, methodNameBuffer);
 
-            // free the remote buffer
+            // free the remote buffers
             hadesmem::Free(process, clrPathBuffer);
+            hadesmem::Free(process, typeNameBuffer);
+            hadesmem::Free(process, methodNameBuffer);
         }
 
         // allow WoW to continue loading

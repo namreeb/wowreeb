@@ -40,13 +40,13 @@ namespace
 {
 std::thread gCLRThread;
 
-unsigned __stdcall ThreadMain(const wchar_t *dllLocation)
+unsigned __stdcall ThreadMain(const wchar_t *dllLocation, const wchar_t *typeName, const wchar_t *methodName)
 {
     ICLRMetaHostPolicy *metaHost = nullptr;
     ICLRRuntimeInfo *runtimeInfo = nullptr;
     ICLRRuntimeHost *clrHost = nullptr;
 
-    HRESULT hr = CLRCreateInstance(CLSID_CLRMetaHostPolicy, IID_ICLRMetaHostPolicy, reinterpret_cast<LPVOID *>(&metaHost));
+    auto hr = CLRCreateInstance(CLSID_CLRMetaHostPolicy, IID_ICLRMetaHostPolicy, reinterpret_cast<LPVOID *>(&metaHost));
 
     if (FAILED(hr))
     {
@@ -87,9 +87,11 @@ unsigned __stdcall ThreadMain(const wchar_t *dllLocation)
     // Execute the Main func in the domain manager, this will block indefinitely.  Hence why we're in our own thread
     // TODO: Add parameters for type and method names
     DWORD dwRet = 0;
-    hr = clrHost->ExecuteInDefaultAppDomain(dllLocation, L"wcs.DomainManager.EntryPoint", L"Main", L"", &dwRet);
+    hr = clrHost->ExecuteInDefaultAppDomain(dllLocation, typeName, methodName, L"", &dwRet);
 
     delete[] dllLocation;
+    delete[] typeName;
+    delete[] methodName;
 
     if (FAILED(hr))
     {
@@ -136,20 +138,30 @@ HMODULE GetCurrentModule()
     GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCTSTR>(GetCurrentModule), &hModule);
     return hModule;
 }
+
+const wchar_t *CopyString(const wchar_t *in)
+{
+    auto const len = wcslen(in);
+    auto const ret = new wchar_t[len + 1];
+    wcsncpy(ret, in, len);
+    ret[len] = L'\0';
+    return ret;
+}
 }
 
 // this function is executed in the context of the wow process
-extern "C" __declspec(dllexport) unsigned int CLRLoad(wchar_t *dll)
+extern "C" __declspec(dllexport) unsigned int CLRLoad(wchar_t *dll, wchar_t *typeName, wchar_t *methodName)
 {
-    const std::wstring dllPath(dll);
+    if (!dll || !typeName || !methodName)
+        return EXIT_FAILURE;
 
-    auto moduleBuffer = new wchar_t[dllPath.length() + 1];
-    wcscpy(moduleBuffer, dllPath.c_str());
-    moduleBuffer[dllPath.length()] = L'\0';
+    auto const dllLocalCopy = CopyString(dll);
+    auto const typeNameCopy = CopyString(typeName);
+    auto const methodNameCopy = CopyString(methodName);
 
     // Start a new thread for CLR to use
     // NOTE: moduleBuffer must be freed by the CLR thread!
-    gCLRThread = std::thread(ThreadMain, moduleBuffer);
+    gCLRThread = std::thread(ThreadMain, dllLocalCopy, typeNameCopy, methodNameCopy);
     gCLRThread.detach();
 
     return EXIT_SUCCESS;

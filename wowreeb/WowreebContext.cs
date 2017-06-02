@@ -40,7 +40,8 @@ namespace wowreeb
         [DllImport("wowreeb.dll", CharSet = CharSet.Unicode)]
         private static extern uint Inject([MarshalAs(UnmanagedType.LPWStr)] string exe,
             [MarshalAs(UnmanagedType.LPWStr)] string dll, [MarshalAs(UnmanagedType.LPStr)] string authServer, float fov,
-            [MarshalAs(UnmanagedType.LPWStr)] string domainDll);
+            [MarshalAs(UnmanagedType.LPWStr)] string clrDll, [MarshalAs(UnmanagedType.LPWStr)] string clrTypeName,
+            [MarshalAs(UnmanagedType.LPWStr)] string clrMethodName);
 
         private struct VersionEntry
         {
@@ -49,6 +50,8 @@ namespace wowreeb
             public string SHA256;
             public float Fov;
             public string CLRDll;
+            public string CLRTypeName;
+            public string CLRMethodName;
         }
 
         private readonly Dictionary<string, VersionEntry> _versionEntries = new Dictionary<string, VersionEntry>();
@@ -106,7 +109,8 @@ namespace wowreeb
 
             // TODO: Add x64 support
             Inject(_versionEntries[entry].Path, Directory.GetCurrentDirectory() + "\\wowreeb.dll",
-                _versionEntries[entry].AuthServer, _versionEntries[entry].Fov, _versionEntries[entry].CLRDll);
+                _versionEntries[entry].AuthServer, _versionEntries[entry].Fov, _versionEntries[entry].CLRDll,
+                _versionEntries[entry].CLRTypeName, _versionEntries[entry].CLRMethodName);
         }
 
         private void Exit(object sender, EventArgs e)
@@ -198,6 +202,12 @@ namespace wowreeb
                                         {
                                             case "path":
                                                 ins.CLRDll = attr.Value;
+                                                break;
+                                            case "type":
+                                                ins.CLRTypeName = attr.Value;
+                                                break;
+                                            case "method":
+                                                ins.CLRMethodName = attr.Value;
                                                 break;
                                             default:
                                                 return false;
