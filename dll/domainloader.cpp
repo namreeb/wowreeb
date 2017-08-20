@@ -27,21 +27,20 @@
 #include <metahost.h>
 #include <CorError.h>
 
-#include <vector>
-#include <thread>
 #include <cassert>
-#include <cstdint>
+#include <sstream>
 
 #pragma comment(lib, "mscoree.lib")
 
 #define MB(s) MessageBox(nullptr, s, nullptr, MB_OK)
 
-namespace
+// this function is executed in the context of the wow process and assumes will block until the specified method returns
+// the intended usage is for the invoked method to create its own thread in order to persist and then return immediately
+extern "C" __declspec(dllexport) unsigned int CLRLoad(wchar_t *dll, wchar_t *typeName, wchar_t *methodName)
 {
-std::thread gCLRThread;
+    if (!dll || !typeName || !methodName)
+        return EXIT_FAILURE;
 
-unsigned __stdcall ThreadMain(const wchar_t *dllLocation, const wchar_t *typeName, const wchar_t *methodName)
-{
     ICLRMetaHostPolicy *metaHost = nullptr;
     ICLRRuntimeInfo *runtimeInfo = nullptr;
     ICLRRuntimeHost *clrHost = nullptr;
@@ -59,8 +58,8 @@ unsigned __stdcall ThreadMain(const wchar_t *dllLocation, const wchar_t *typeNam
     DWORD pcchVersion;
     DWORD dwConfigFlags;
 
-    hr = metaHost->GetRequestedRuntime(METAHOST_POLICY_HIGHCOMPAT, dllLocation, nullptr, nullptr, &pcchVersion, nullptr, nullptr, &dwConfigFlags, IID_ICLRRuntimeInfo,
-                                       reinterpret_cast<LPVOID *>(&runtimeInfo));
+    hr = metaHost->GetRequestedRuntime(METAHOST_POLICY_HIGHCOMPAT, dll, nullptr, nullptr, &pcchVersion, nullptr, nullptr, &dwConfigFlags, IID_ICLRRuntimeInfo,
+        reinterpret_cast<LPVOID *>(&runtimeInfo));
 
     if (FAILED(hr))
     {
@@ -84,85 +83,46 @@ unsigned __stdcall ThreadMain(const wchar_t *dllLocation, const wchar_t *typeNam
         return EXIT_FAILURE;
     }
 
-    // Execute the Main func in the domain manager, this will block indefinitely.  Hence why we're in our own thread
-    // TODO: Add parameters for type and method names
     DWORD dwRet = 0;
-    hr = clrHost->ExecuteInDefaultAppDomain(dllLocation, typeName, methodName, L"", &dwRet);
-
-    delete[] dllLocation;
-    delete[] typeName;
-    delete[] methodName;
+    hr = clrHost->ExecuteInDefaultAppDomain(dll, typeName, methodName, L"", &dwRet);
 
     if (FAILED(hr))
     {
-        MB(L"Failed to execute in the default app domain!");
-        
+        std::wstringstream str;
+
+        str << "Failed to execute in default app domain:\n";
+
         switch (hr)
         {
-            case HOST_E_CLRNOTAVAILABLE:
-                MB(L"CLR Not available");
-                break;
+        case HOST_E_CLRNOTAVAILABLE:
+            str << "CLR not available";
+            break;
 
-            case HOST_E_TIMEOUT:
-                MB(L"Call timed out");
-                break;
+        case HOST_E_TIMEOUT:
+            str << "Call timed out";
+            break;
 
-            case HOST_E_NOT_OWNER:
-                MB(L"Caller does not own lock");
-                break;
+        case HOST_E_NOT_OWNER:
+            str << "Caller does not own lock";
+            break;
 
-            case HOST_E_ABANDONED:
-                MB(L"An event was canceled while a blocked thread or fiber was waiting on it");
-                break;
+        case HOST_E_ABANDONED:
+            str << "An event was cancelled while a blocked thread or fiber was waiting on it";
+            break;
 
-            case E_FAIL:
-                MB(L"Unspecified catastrophic failure");
-                break;
+        case E_FAIL:
+            str << "Unspecified catastrophic failure";
+            break;
 
-            default:
-                char buff[128];
-                sprintf(buff, "Result is: 0x%lx", hr);
-                MessageBoxA(nullptr, buff, "Info", 0);
-                break;
+        default:
+            str << "Result is 0x" << std::hex << std::uppercase << hr << std::dec;
+            break;
         }
+
+        MB(str.str().c_str());
 
         return EXIT_FAILURE;
     }
-
-    return EXIT_SUCCESS;
-}
-
-HMODULE GetCurrentModule()
-{
-    HMODULE hModule = nullptr;
-    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, reinterpret_cast<LPCTSTR>(GetCurrentModule), &hModule);
-    return hModule;
-}
-
-const wchar_t *CopyString(const wchar_t *in)
-{
-    auto const len = wcslen(in);
-    auto const ret = new wchar_t[len + 1];
-    wcsncpy(ret, in, len);
-    ret[len] = L'\0';
-    return ret;
-}
-}
-
-// this function is executed in the context of the wow process
-extern "C" __declspec(dllexport) unsigned int CLRLoad(wchar_t *dll, wchar_t *typeName, wchar_t *methodName)
-{
-    if (!dll || !typeName || !methodName)
-        return EXIT_FAILURE;
-
-    auto const dllLocalCopy = CopyString(dll);
-    auto const typeNameCopy = CopyString(typeName);
-    auto const methodNameCopy = CopyString(methodName);
-
-    // Start a new thread for CLR to use
-    // NOTE: moduleBuffer must be freed by the CLR thread!
-    gCLRThread = std::thread(ThreadMain, dllLocalCopy, typeNameCopy, methodNameCopy);
-    gCLRThread.detach();
 
     return EXIT_SUCCESS;
 }
