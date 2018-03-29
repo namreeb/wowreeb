@@ -204,9 +204,9 @@ void InitializeHook(hadesmem::PatchDetourBase *detour, void *arg, const char *lo
 
     (cvar->*set)(authServer, 1, 0, 1, 0);
 
-    *pDone = true;
-
     detour->Remove();
+
+    *pDone = true;
 }
 
 void ApplyClientInitHook(char *authServer, float fov)
@@ -251,9 +251,9 @@ void InitializeHook(hadesmem::PatchDetourBase *detour, char *authServer)
 
     (cvar->*set)(authServer, 1, 0, 1, 0);
 
-    *pDone = true;
-
     detour->Remove();
+
+    *pDone = true;
 }
 
 void ApplyClientInitHook(char *authServer, float fov)
