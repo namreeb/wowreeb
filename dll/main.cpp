@@ -178,7 +178,10 @@ extern "C" __declspec(dllexport) unsigned int Inject(const wchar_t *exePath, con
 
             // call our CLR load in the remote process
             auto const clrLoad = reinterpret_cast<unsigned int(*)(PVOID, PVOID, PVOID)>(hadesmem::FindProcedure(process, module, "CLRLoad"));
-            hadesmem::Call(process, clrLoad, hadesmem::CallConv::kDefault, clrPathBuffer, typeNameBuffer, methodNameBuffer);
+            auto const result = hadesmem::Call(process, clrLoad, hadesmem::CallConv::kDefault, clrPathBuffer, typeNameBuffer, methodNameBuffer);
+            
+            if (!!result.GetReturnValue())
+                MessageBoxA(nullptr, "CLRLoad failed", "Injection failure", 0);
 
             // free the remote buffers
             hadesmem::Free(process, clrPathBuffer);

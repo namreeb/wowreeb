@@ -83,6 +83,7 @@ extern "C" __declspec(dllexport) unsigned int CLRLoad(wchar_t *dll, wchar_t *typ
         return EXIT_FAILURE;
     }
 
+    // assumed to return zero on success
     DWORD dwRet = 0;
     hr = clrHost->ExecuteInDefaultAppDomain(dll, typeName, methodName, L"", &dwRet);
 
@@ -124,5 +125,5 @@ extern "C" __declspec(dllexport) unsigned int CLRLoad(wchar_t *dll, wchar_t *typ
         return EXIT_FAILURE;
     }
 
-    return EXIT_SUCCESS;
+    return static_cast<unsigned int>(dwRet);
 }
