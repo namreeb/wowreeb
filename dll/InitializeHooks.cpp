@@ -1,7 +1,7 @@
 /*
     MIT License
 
-    Copyright (c) 2017 namreeb http://github.com/namreeb legal@namreeb.org
+    Copyright (c) 2018 namreeb http://github.com/namreeb legal@namreeb.org
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,9 @@
 
 */
 
+#pragma comment(lib, "asmjit.lib")
+#pragma comment(lib, "udis86.lib")
+
 #include <hadesmem/patcher.hpp>
 
 #include <cstdint>
@@ -34,7 +37,8 @@ enum class Version
     Classic = 0,
     TBC,
     WotLK,
-    Cata,
+    Cata32,
+    Cata64,
     Total
 };
 
@@ -72,11 +76,18 @@ PVOID GetAddress(Version version, Offset offset)
             0x2B0BF0,
             0x5E8D88
         },
-        // Cata
+        // Cata32
         {
             0x2553B0,
             0x9BE800,
             0x0CEDF0,
+            0x00, // not supported.  let me know if anyone actually wants this
+        },
+        // Cata64
+        {
+            0x2F61D0,
+            0xCA4328,
+            0x10AF50,
             0x00, // not supported.  let me know if anyone actually wants this
         }
     };
@@ -232,7 +243,7 @@ void ApplyClientInitHook(char *authServer, float fov)
 }
 }
 
-namespace Cata
+namespace Cata32
 {
 class CVar {};
 
@@ -244,8 +255,8 @@ void InitializeHook(hadesmem::PatchDetourBase *detour, char *authServer)
     auto const initialize = detour->GetTrampolineT<InitializeT>();
     (*initialize)();
 
-    auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::Cata, Offset::RealmListCVar));
-    auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::Cata, Offset::CVar__Set));
+    auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::Cata32, Offset::RealmListCVar));
+    auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::Cata32, Offset::CVar__Set));
 
     auto const pDone = authServer + strlen(authServer) + 1;
 
@@ -256,12 +267,52 @@ void InitializeHook(hadesmem::PatchDetourBase *detour, char *authServer)
     *pDone = true;
 }
 
-void ApplyClientInitHook(char *authServer, float fov)
+void ApplyClientInitHook(char *authServer, float /*fov*/)
 {
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(GetAddress(Version::Cata, Offset::Initialize));
+    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(GetAddress(Version::Cata32, Offset::Initialize));
     auto initializeDetour = new hadesmem::PatchDetour<InitializeT>(proc, initializeOrig,
         [authServer](hadesmem::PatchDetourBase *detour)
+    {
+        InitializeHook(detour, authServer);
+    });
+
+    initializeDetour->Apply();
+}
+}
+
+namespace Cata64
+{
+class CVar {};
+
+using SetT = bool(__fastcall CVar::*)(const char *, char, char, char, char);
+using InitializeT = void(__stdcall *)();
+
+void InitializeHook(hadesmem::PatchDetourBase *detour, char *authServer)
+{
+    auto const initialize = detour->GetTrampolineT<InitializeT>();
+    (*initialize)();
+
+    auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::Cata64, Offset::RealmListCVar));
+    auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::Cata64, Offset::CVar__Set));
+
+    auto const pDone = authServer + strlen(authServer) + 1;
+
+    ::MessageBoxA(nullptr, "SET", "DEBUG", 0);
+
+    (cvar->*set)(authServer, 1, 0, 1, 0);
+
+    detour->Remove();
+
+    *pDone = true;
+}
+
+void ApplyClientInitHook(char *authServer, float /*fov*/)
+{
+    auto const proc = hadesmem::Process(::GetCurrentProcessId());
+    auto const initializeOrig = hadesmem::detail::AliasCast<InitializeT>(GetAddress(Version::Cata64, Offset::Initialize));
+    auto initializeDetour = new hadesmem::PatchDetour<InitializeT>(proc, initializeOrig,
+        [authServer] (hadesmem::PatchDetourBase *detour)
     {
         InitializeHook(detour, authServer);
     });

@@ -1,7 +1,7 @@
-﻿/*
+/*
     MIT License
 
-    Copyright (c) 2017 namreeb http://github.com/namreeb legal@namreeb.org
+    Copyright (c) 2018 namreeb http://github.com/namreeb legal@namreeb.org
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -23,22 +23,39 @@
 
 */
 
-using System;
-using System.Windows.Forms;
+#pragma once
 
-namespace wowreeb
+#include <vector>
+#include <memory>
+#include <Windows.h>
+#include <thread>
+#include <mutex>
+
+class NotifyIcon;
+
+class NotifyIconMgr
 {
-    static class Program
+private:
+    bool _shutdown;
+
+    std::thread _messageThread;
+    mutable std::mutex _mutex;
+
+    std::vector<std::pair<HICON, const TCHAR *>> _pending;
+    std::vector<std::shared_ptr<NotifyIcon>> _icons;
+
+    void MessageLoop(HINSTANCE hInstance);
+
+public:
+    NotifyIconMgr(HINSTANCE hInstance);
+    ~NotifyIconMgr()
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new WowreebContext());
-        }
+        _shutdown = true;
+        _messageThread.join();
     }
-}
+
+    bool Command(HWND hWnd, unsigned int iconId, unsigned int menuId);
+    bool WindowProc(HWND hWnd, unsigned int iconId, WPARAM wParam, LPARAM lParam);
+
+    std::shared_ptr<NotifyIcon> Create(HICON icon, const TCHAR *tip);
+};

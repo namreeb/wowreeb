@@ -3,6 +3,10 @@ An intelligent, versatile, and multi-versioned World of Warcraft launcher
 
 This application was made to have a reliable and efficient way to launch different versions of World of Warcraft without having to manually edit files.  It is configured in XML, and is lightweight enough to be loaded by Windows upon login.  It will create a system tray icon which will display a menu showing the different options defined in the configuration file.  An example configuration file is included.
 
+## New In Version 2.0
+
+Now includes 64 bit support and the option to clear client cache before launch
+
 ## Technical Information
 
 The launcher app is written in C# and includes a helper library written in C++.  The C++ DLL depends on hadesmem (https://github.com/RaptorFactor/hadesmem).  The helper DLL serves two purposes.  It is loaded by the launcher to create the World of Warcraft process, injecting itself at the same time.  When the helper DLL is loaded by the newly launched World of Warcraft process, it will adjust the environment in the manner requested by the launcher.  This includes setting the name of the authentication server and optionally adjusting the graphics engine field-of-view (FoV) value.

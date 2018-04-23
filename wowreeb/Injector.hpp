@@ -25,27 +25,14 @@
 
 #pragma once
 
-namespace Classic
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+#include <string>
+#include <filesystem>
 
-namespace TBC
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+namespace fs = std::experimental::filesystem;
 
-namespace WOTLK
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
-
-namespace Cata32
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
-
-namespace Cata64
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+unsigned int Inject(
+    const fs::path &exe,
+    const fs::path &ourDll, const std::string &ourMethod,
+    const std::string &authServer, float fov,
+    const fs::path &nativeDll, const std::string &nativeMethod,
+    const fs::path &clrDll, const std::wstring &clrTypeName, const std::wstring &clrMethodName);

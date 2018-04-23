@@ -25,27 +25,46 @@
 
 #pragma once
 
-namespace Classic
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+#include <functional>
+#include <mutex>
+#include <vector>
+#include <Windows.h>
+#include <strsafe.h>
 
-namespace TBC
+class NotifyIcon
 {
-void ApplyClientInitHook(char *authServer, float fov);
-}
+public:
+    static constexpr int IconBits = 7;
+    static constexpr int MenuBits = 14 - IconBits;
 
-namespace WOTLK
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+private:
+    static_assert(IconBits > 0 && MenuBits > 0 && IconBits + MenuBits == 14, "IconBits + MenuBits must be 14");
 
-namespace Cata32
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+    HWND _window;
+    unsigned int _id;
 
-namespace Cata64
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+    struct MenuEntry
+    {
+        TCHAR text[32];
+        std::function<void()> callback;
+
+        MenuEntry(const TCHAR *t, std::function<void()> cb) : callback(cb)
+        {
+            StringCchCopy(text, ARRAYSIZE(text), t);
+        }
+    };
+
+    mutable std::mutex _mutex;
+
+    std::vector<MenuEntry> _menuEntries;
+
+public:
+    NotifyIcon(HWND window, unsigned int id, HICON icon, const TCHAR *tip);
+    ~NotifyIcon();
+
+    void ToggleMenu();
+
+    void ClearMenu();
+    void AddMenu(const TCHAR *text, std::function<void()> callback = nullptr, int position = -1);
+    void ClickMenu(unsigned int menuId) const;
+};

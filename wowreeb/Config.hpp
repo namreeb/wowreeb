@@ -25,27 +25,53 @@
 
 #pragma once
 
-namespace Classic
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+#include "../PicoSHA2/picosha2.h"
 
-namespace TBC
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+#include <filesystem>
+#include <string>
+#include <vector>
+#include <cstdint>
+#include <tchar.h>
 
-namespace WOTLK
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+// eventually the 'experimental' will be dropped
+namespace fs = std::experimental::filesystem;
 
-namespace Cata32
+class Config
 {
-void ApplyClientInitHook(char *authServer, float fov);
-}
+private:
+    fs::path _path;
+    fs::path _ourDll;
 
-namespace Cata64
-{
-void ApplyClientInitHook(char *authServer, float fov);
-}
+public:
+    struct ConfigEntry
+    {
+        std::string Name;
+
+        fs::path Path;
+        std::uint8_t SHA256[picosha2::k_digest_size];
+
+        std::string AuthServer;
+
+        float Fov;
+
+        fs::path OurDll;
+        std::string OurMethod;
+
+        fs::path NativeDll;
+        std::string NativeMethod;
+
+        fs::path CLRDll;
+        std::string CLRTypeName;
+        std::string CLRMethodName;
+    };
+
+    // this isn't thread safe, but what could go wrong?
+    std::vector<ConfigEntry> entries;
+
+    // when true, remove entire WDB folder before launching the client
+    bool clearWDB;
+
+    Config(const TCHAR *filename);
+
+    void Reload();
+};

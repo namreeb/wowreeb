@@ -21,3 +21,5 @@
 /dll/Debug
 /dll/Release
 /dll/*.user
+/.vs
+/build
