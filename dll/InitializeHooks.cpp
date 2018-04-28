@@ -298,8 +298,6 @@ void InitializeHook(hadesmem::PatchDetourBase *detour, char *authServer)
 
     auto const pDone = authServer + strlen(authServer) + 1;
 
-    ::MessageBoxA(nullptr, "SET", "DEBUG", 0);
-
     (cvar->*set)(authServer, 1, 0, 1, 0);
 
     detour->Remove();
