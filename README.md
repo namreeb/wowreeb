@@ -13,11 +13,11 @@ Now includes 64 bit support and the option to clear client cache before launch
 
 ## Technical Information
 
-The launcher app is written in C# and includes a helper library written in C++.  The C++ DLL depends on hadesmem (https://github.com/RaptorFactor/hadesmem).  The helper DLL serves two purposes.  It is loaded by the launcher to create the World of Warcraft process, injecting itself at the same time.  When the helper DLL is loaded by the newly launched World of Warcraft process, it will adjust the environment in the manner requested by the launcher.  This includes setting the name of the authentication server and optionally adjusting the graphics engine field-of-view (FoV) value.
+This application is written in C++.  It includes a 32 bit and 64 bit executable and DLL.  The project depends on hadesmem (https://github.com/RaptorFactor/hadesmem).  When the helper DLL is loaded by a newly launched World of Warcraft process, it will adjust the environment in the manner requested by the launcher.  This includes setting the name of the authentication server and optionally adjusting the graphics engine field-of-view (FoV) value.
 
 ## Security
 
-Though the included helper DLL (wowreeb.dll) is injected into the World of Warcraft process, it will eject itself once its initialization is complete.  Therefore the DLL itself should not be detectable by Warden.
+Though the included helper DLL (wowreeb32.dll or wowreeb64.dll) is injected into the World of Warcraft process, it will eject itself once its initialization is complete.  Therefore the DLL itself should not be detectable by Warden.
 
 **HOWEVER** if your configuration file defines a change to the FoV value, this change **is detectable** by Warden.  No reasonable server developer would bother to detect this, but use at your own risk!
 
