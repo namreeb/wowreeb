@@ -249,6 +249,24 @@ void Config::Reload()
                         }
                     }
                 }
+                else if (cname == "DLL")
+                {
+                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    {
+                        const std::string rname(r->name());
+
+                        if (rname == "Path")
+                            ins.NativeDll = r->value();
+                        else if (rname == "Method")
+                            ins.NativeMethod = r->value();
+                        else
+                        {
+                            std::stringstream str;
+                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            throw std::runtime_error(str.str().c_str());
+                        }
+                    }
+                }
                 else
                 {
                     std::stringstream str;
