@@ -3,6 +3,10 @@ An intelligent, versatile, and multi-versioned World of Warcraft launcher
 
 This application was made to have a reliable and efficient way to launch different versions of World of Warcraft without having to manually edit files.  It is configured in XML, and is lightweight enough to be loaded by Windows upon login.  It will create a system tray icon which will display a menu showing the different options defined in the configuration file.  An example configuration file is included.
 
+## Configuration
+
+Included in the source as well as binary tarballs is an `example_config.xml` file.  Use this as a guide for configuring wowreeb for your system.  It must be renamed to `config.xml` in order for wowreeb to find it.  Explanations for the various settings are included in comments in the example configuration file.
+
 ## New In Version 2.0
 
 Now includes 64 bit support and the option to clear client cache before launch
