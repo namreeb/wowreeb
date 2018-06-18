@@ -133,6 +133,7 @@ void Config::Reload()
             ins.OurDll = _ourDll;
             ins.OurMethod = "Load";
             ZeroMemory(&ins.SHA256, sizeof(ins.SHA256));
+            ins.Console = false;
             ins.Fov = 0.f;
 
             for (auto r = n->first_attribute(); !!r; r = r->next_attribute())
@@ -201,6 +202,30 @@ void Config::Reload()
                             throw std::runtime_error(str.str().c_str());
                         }
                     }
+                }
+                else if (cname == "Console")
+                {
+                    std::string consoleValue;
+
+                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    {
+                        const std::string rname(r->name());
+
+                        if (rname == "Value")
+                        {
+                            consoleValue = std::string(r->value());
+
+                            std::transform(consoleValue.begin(), consoleValue.end(), consoleValue.begin(), ::toupper);
+                        }
+                        else
+                        {
+                            std::stringstream str;
+                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            throw std::runtime_error(str.str().c_str());
+                        }
+                    }
+
+                    ins.Console = consoleValue == "1" || consoleValue == "TRUE";
                 }
                 else if (cname == "Fov")
                 {
@@ -293,6 +318,12 @@ void Config::Reload()
                     configValue = std::string(a->value());
 
                     std::transform(configValue.begin(), configValue.end(), configValue.begin(), ::toupper);
+                }
+                else
+                {
+                    std::stringstream str;
+                    str << "Unexpected " << name << " attribute \"" << name << "\"";
+                    throw std::runtime_error(str.str().c_str());
                 }
             }
 

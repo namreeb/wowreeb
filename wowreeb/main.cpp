@@ -127,7 +127,7 @@ void Launch(const Config::ConfigEntry &entry, bool clearWDB, bool verifyChecksum
     {
         ::Inject(entry.Path,
             entry.OurDll, entry.OurMethod,
-            entry.AuthServer, entry.Fov,
+            entry.AuthServer, entry.Console, entry.Fov,
             entry.NativeDll, entry.NativeMethod,
             entry.CLRDll, make_wstring(entry.CLRTypeName), make_wstring(entry.CLRMethodName));
         return;

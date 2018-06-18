@@ -97,11 +97,14 @@ void EjectionPoll(hadesmem::Process process, HMODULE dll, PVOID remoteBuffer, si
 unsigned int Inject(
     const fs::path &exe,
     const fs::path &ourDll, const std::string &ourMethod,
-    const std::string &authServer, float fov,
+    const std::string &authServer, bool console, float fov,
     const fs::path &nativeDll, const std::string &nativeMethod,
     const fs::path &clrDll, const std::wstring &clrTypeName, const std::wstring &clrMethodName)
 {
-    const std::vector<std::wstring> createArgs { L"-console" };
+    std::vector<std::wstring> createArgs;
+
+    if (console)
+        createArgs.emplace_back(L"-console");
 
     try
     {

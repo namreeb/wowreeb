@@ -52,6 +52,8 @@ public:
 
         std::string AuthServer;
 
+        bool Console;
+
         float Fov;
 
         fs::path OurDll;

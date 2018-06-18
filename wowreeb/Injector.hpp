@@ -33,6 +33,6 @@ namespace fs = std::experimental::filesystem;
 unsigned int Inject(
     const fs::path &exe,
     const fs::path &ourDll, const std::string &ourMethod,
-    const std::string &authServer, float fov,
+    const std::string &authServer, bool console, float fov,
     const fs::path &nativeDll, const std::string &nativeMethod,
     const fs::path &clrDll, const std::wstring &clrTypeName, const std::wstring &clrMethodName);

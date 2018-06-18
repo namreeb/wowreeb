@@ -9,6 +9,9 @@
     <!--- Hostname or IP address to use.  This is accomplished by replacing value of the realmList console variable after all other loading is finished. -->
     <AuthServer Host="logon.lightshope.org" />
     
+    <!--- Optionally enable the WoW console.  To not enable the console, either remove this or set the value to "0". -->
+    <Console Value="1" />
+    
     <!--- Optional setting to override the DirectX field of view parameter.  If you don't know what this is, do not use it. -->
     <Fov Value="3.14159" />
     
