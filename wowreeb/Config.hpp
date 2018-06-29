@@ -25,7 +25,8 @@
 
 #pragma once
 
-#include "../PicoSHA2/picosha2.h"
+#include "PicoSHA2/picosha2.h"
+#include "tiny-AES-c/aes.hpp"
 
 #include <filesystem>
 #include <string>
@@ -36,6 +37,33 @@
 // eventually the 'experimental' will be dropped
 namespace fs = std::experimental::filesystem;
 
+struct ConfigEntry
+{
+    std::string Name;
+
+    fs::path Path;
+    std::uint8_t SHA256[picosha2::k_digest_size];
+
+    std::string AuthServer;
+
+    bool Console;
+
+    float Fov;
+
+    fs::path OurDll;
+    std::string OurMethod;
+
+    fs::path NativeDll;
+    std::string NativeMethod;
+
+    fs::path CLRDll;
+    std::string CLRTypeName;
+    std::string CLRMethodName;
+
+    std::string Username;
+    std::string Password;
+};
+
 class Config
 {
 private:
@@ -43,32 +71,13 @@ private:
     fs::path _ourDll;
 
 public:
-    struct ConfigEntry
-    {
-        std::string Name;
-
-        fs::path Path;
-        std::uint8_t SHA256[picosha2::k_digest_size];
-
-        std::string AuthServer;
-
-        bool Console;
-
-        float Fov;
-
-        fs::path OurDll;
-        std::string OurMethod;
-
-        fs::path NativeDll;
-        std::string NativeMethod;
-
-        fs::path CLRDll;
-        std::string CLRTypeName;
-        std::string CLRMethodName;
-    };
+    static constexpr char Magic[] = "WOWREEB:";
+    static constexpr std::uint8_t Iv[AES_BLOCKLEN] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED, 0xFA, 0xCE, 0x01, 0x02, 0x03, 0x04, 0x08, 0x07, 0x06, 0x05 };
 
     // this isn't thread safe, but what could go wrong?
     std::vector<ConfigEntry> entries;
+
+    std::string key;
 
     // when true, remove entire WDB folder before launching the client
     bool clearWDB;
@@ -76,4 +85,6 @@ public:
     Config(const TCHAR *filename);
 
     void Reload();
+
+    bool VerifyKey(const std::string &key);
 };

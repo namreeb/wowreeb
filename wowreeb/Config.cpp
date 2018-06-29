@@ -24,7 +24,8 @@
 */
 
 #include "Config.hpp"
-#include "../rapidxml/rapidxml.hpp"
+#include "rapidxml/rapidxml.hpp"
+#include "tiny-AES-c/aes.hpp"
 
 #include <filesystem>
 #include <stdexcept>
@@ -292,6 +293,24 @@ void Config::Reload()
                         }
                     }
                 }
+                else if (cname == "Credentials")
+                {
+                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    {
+                        const std::string rname(r->name());
+
+                        if (rname == "Username")
+                            ins.Username = r->value();
+                        else if (rname == "Password")
+                            ins.Password = r->value();
+                        else
+                        {
+                            std::stringstream str;
+                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            throw std::runtime_error(str.str().c_str());
+                        }
+                    }
+                }
                 else
                 {
                     std::stringstream str;
@@ -343,4 +362,66 @@ void Config::Reload()
             throw std::runtime_error(str.str().c_str());
         }
     }
+}
+
+bool Config::VerifyKey(const std::string &key)
+{
+    std::uint8_t keyRaw[AES_KEYLEN];
+    ::memset(keyRaw, 0, sizeof(keyRaw));
+    ::memcpy(keyRaw, key.c_str(), key.length());
+
+    for (auto &entry : entries)
+    {
+        if (entry.Password.empty())
+            continue;
+
+        std::vector<std::uint8_t> buffer(entry.Password.length() / 2);
+
+        // encrypted buffers must be mutile of AES_BLOCKLEN
+        if (buffer.size() % AES_BLOCKLEN)
+            return false;
+
+        // convert hex string into raw data inside the vector
+        for (auto i = 0u; i < buffer.size(); ++i)
+            buffer[i] = HexCharsToByte(entry.Password[i * 2], entry.Password[i * 2 + 1]);
+
+        AES_ctx ctx;
+        ZeroMemory(&ctx, sizeof(ctx));
+        AES_init_ctx_iv(&ctx, keyRaw, Iv);
+
+        AES_CBC_decrypt_buffer(&ctx, &buffer[0], buffer.size());
+
+        // remove PKCS7 padding
+        auto const pad = buffer[buffer.size() - 1];
+
+        // values greater than this cannot be padding
+        if (pad < AES_BLOCKLEN)
+        {
+            // this should not be possible
+            if (pad >= buffer.size())
+                return false;
+
+            for (auto i = 1; i <= pad; ++i)
+            {
+                if (buffer[buffer.size() - i] != pad)
+                    return false;
+
+                buffer[buffer.size() - i] = 0;
+            }
+        }
+
+        // check for magic string to verify correctness
+        auto constexpr magicLen = sizeof(Magic) - 1;
+
+        const std::string pass(reinterpret_cast<const char *>(&buffer[0]));
+
+        if (pass.substr(0, magicLen) != Magic)
+            return false;
+
+        entry.Password = pass.substr(magicLen);
+    }
+
+    this->key = key;
+
+    return true;
 }

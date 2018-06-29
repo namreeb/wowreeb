@@ -1,7 +1,9 @@
-include_directories(Include ${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(Include ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
 
 set(EXECUTABLE_NAME wowreeb)
-set(SOURCE_FILES Config.cpp Injector.cpp main.cpp NotifyIcon.cpp NotifyIconMgr.cpp wowreeb.rc)
+set(SOURCE_FILES Config.cpp InputWindow.cpp Injector.cpp main.cpp NotifyIcon.cpp NotifyIconMgr.cpp wowreeb.rc ${CMAKE_SOURCE_DIR}/tiny-AES-c/aes.c)
+
+add_definitions(-DAES256)
 
 set_source_files_properties(WoW.ico wowreeb.rc PROPERTIES LANGUAGE RC)
 

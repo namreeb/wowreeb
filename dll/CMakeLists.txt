@@ -1,4 +1,4 @@
-include_directories(Include ${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(Include ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
 
 set(SOURCE_FILES
     domainloader.cpp

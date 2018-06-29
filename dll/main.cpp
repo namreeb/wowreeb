@@ -72,9 +72,9 @@ unsigned int GetBuild()
 #define BUILD_CATA      15595
 
 // this function is executed in the context of the wow process
-extern "C" __declspec(dllexport) unsigned int Load(char *authServer, float fov)
+extern "C" __declspec(dllexport) unsigned int Load(GameSettings *settings)
 {
-    if (!authServer)
+    if (!settings->AuthServer[0])
         return EXIT_FAILURE;
 
     auto const build = GetBuild();
@@ -82,19 +82,19 @@ extern "C" __declspec(dllexport) unsigned int Load(char *authServer, float fov)
     switch (build)
     {
         case BUILD_CLASSIC:
-            Classic::ApplyClientInitHook(authServer, fov);
+            Classic::ApplyClientInitHook(settings);
             break;
         case BUILD_TBC:
-            TBC::ApplyClientInitHook(authServer, fov);
+            TBC::ApplyClientInitHook(settings);
             break;
         case BUILD_WOTLK:
-            WOTLK::ApplyClientInitHook(authServer, fov);
+            WOTLK::ApplyClientInitHook(settings);
             break;
         case BUILD_CATA:
             if (sizeof(void *) == 4)
-                Cata32::ApplyClientInitHook(authServer, fov);
+                Cata32::ApplyClientInitHook(settings);
             else
-                Cata64::ApplyClientInitHook(authServer, fov);
+                Cata64::ApplyClientInitHook(settings);
             break;
         default:
             return EXIT_FAILURE;

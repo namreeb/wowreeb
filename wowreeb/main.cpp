@@ -29,16 +29,19 @@
 #include "Config.hpp"
 #include "Injector.hpp"
 #include "PicoSHA2/picosha2.h"
+#include "InputWindow.hpp"
+#include "tiny-AES-c/aes.hpp"
 
 #include <thread>
 #include <chrono>
 #include <string>
-#include <locale>
-#include <codecvt>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
+#include <iomanip>
 #include <cstdint>
 #include <vector>
+#include <memory>
 #include <Windows.h>
 #include <tchar.h>
 #include <ImageHlp.h>
@@ -47,53 +50,53 @@
 
 namespace fs = std::experimental::filesystem;
 
+extern std::wstring make_wstring(const std::string &in);
+
 namespace
 {
-std::wstring make_wstring(const std::string &in)
-{
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    return converter.from_bytes(in);
-}
+static constexpr char EnvEntry[] = "WOWREEB_ENTRY";
+static constexpr char EnvKey[] = "WOWREEB_KEY";
 
-void Launch(const Config::ConfigEntry &entry, bool clearWDB, bool verifyChecksum)
+void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
 {
     // step 1: ensure exe exists
     if (!fs::exists(entry.Path))
         throw std::runtime_error("Exe file not found");
 
-    if (verifyChecksum)
+    // step 2: determine whether the launcher and target binary are running in 32 bit mode
+    DWORD themType;
+
+    if (!::GetBinaryTypeA(entry.Path.string().c_str(), &themType))
+        throw std::runtime_error("GetBinaryType failed");
+
+    const bool them32 = themType == SCS_32BIT_BINARY;
+    const bool us32 = sizeof(void *) == 4;
+
+    // step 3: verify checksum, if present, only if the platform matches
+    if (them32 == us32 && !!entry.SHA256[0])
     {
-        // step 2: verify checksum, if present
-        for (auto i = 0u; i < sizeof(entry.SHA256); ++i)
-        {
-            if (!entry.SHA256[i])
-                continue;
+        std::ifstream exe(entry.Path, std::ios::binary);
 
-            std::ifstream exe(entry.Path, std::ios::binary);
+        std::vector<std::uint8_t> hash(picosha2::k_digest_size);
+        picosha2::hash256(std::istreambuf_iterator<char>(exe), std::istreambuf_iterator<char>(), hash.begin(), hash.end());
 
-            std::vector<std::uint8_t> hash(picosha2::k_digest_size);
-            picosha2::hash256(std::istreambuf_iterator<char>(exe), std::istreambuf_iterator<char>(), hash.begin(), hash.end());
-
-            if (!!memcmp(entry.SHA256, &hash[0], hash.size()))
-                throw std::runtime_error("Checksum failed");
-
-            break;
-        }
+        if (!!memcmp(entry.SHA256, &hash[0], hash.size()))
+            throw std::runtime_error("Checksum failed");
     }
 
-    // step 3: ensure our dll exists
+    // step 4: ensure our dll exists
     if (!fs::exists(entry.OurDll))
         throw std::runtime_error("wowreeb.dll not found");
 
-    // step 4: ensure native dll exists, if present
+    // step 5: ensure native dll exists, if present
     if (!entry.NativeDll.empty() && !fs::exists(entry.NativeDll))
         throw std::runtime_error("Native DLL not found");
 
-    // step 5: ensure clr dll exists, if present
+    // step 6: ensure clr dll exists, if present
     if (!entry.CLRDll.empty() && !fs::exists(entry.CLRDll))
         throw std::runtime_error("CLR DLL not found");
 
-    // step 6: reset cache if requested
+    // step 7: reset cache if requested
     if (clearWDB)
     {
         try
@@ -113,25 +116,15 @@ void Launch(const Config::ConfigEntry &entry, bool clearWDB, bool verifyChecksum
         }
     }
 
-    // step 7: ensure 32 bit launcher creating 32 bit process, or 64 bit launcher creating 64 bit process
-    DWORD themType;
-
-    if (!::GetBinaryTypeA(entry.Path.string().c_str(), &themType))
-        throw std::runtime_error("GetBinaryType failed");
-
-    const bool them32 = themType == SCS_32BIT_BINARY;
-    const bool us32 = sizeof(void *) == 4;
-
-    // if the architectures match, inject and stop
+    // step 8: if the architectures match, inject and stop
     if (us32 == them32)
     {
-        ::Inject(entry.Path,
-            entry.OurDll, entry.OurMethod,
-            entry.AuthServer, entry.Console, entry.Fov,
-            entry.NativeDll, entry.NativeMethod,
-            entry.CLRDll, make_wstring(entry.CLRTypeName), make_wstring(entry.CLRMethodName));
+        ::Inject(entry);
         return;
     }
+
+    // if we reach here it is because we need to run the other launcher executable
+    // so that we can inject the right dll.  find the launcher and setup the environment...
 
     auto const hmod = ::GetModuleHandle(nullptr);
     TCHAR path[MAX_PATH];
@@ -147,19 +140,115 @@ void Launch(const Config::ConfigEntry &entry, bool clearWDB, bool verifyChecksum
         throw std::runtime_error(msg.str());
     }
 
+    std::string envEntry(EnvEntry);
+    envEntry += "=" + entry.Name;
+
+    std::string envKey(EnvKey);
+    envKey += "=" + key;
+
+    // step 9: setup environment so the other launcher executable knows not to load the GUI
+    _putenv(envEntry.c_str());
+    _putenv(envKey.c_str());
+
     STARTUPINFOA si;
     PROCESS_INFORMATION pi;
 
     ZeroMemory(&si, sizeof(si));
     ZeroMemory(&pi, sizeof(pi));
 
-    si.cb = sizeof(si);
-
-    std::vector<char> buff(entry.Name.begin(), entry.Name.end());
-    buff.push_back(0);
-
-    if (!::CreateProcessA(exe.string().c_str(), &buff[0], nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi))
+    // step 10: run the other launcher executable
+    if (!::CreateProcessA(exe.string().c_str(), nullptr, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi))
         throw std::runtime_error("CreateProcess failed");
+}
+
+template <typename T>
+T RoundUp(T val, T mul)
+{
+    return mul * (1 + ((val - 1) / mul));
+}
+
+std::string DataToHex(const std::vector<std::uint8_t> &data)
+{
+    std::stringstream str;
+
+    str << std::hex << std::uppercase << std::setfill('0');
+
+    for (auto const &c : data)
+        str << std::setw(2) << static_cast<std::uint32_t>(c);
+
+    return str.str();
+}
+
+bool ReadAndEncryptPassword(HINSTANCE hInstance, int nCmdShow, std::string &key, std::string &result)
+{
+    // if there are not already credentials in the config file, no key will have been input yet.  therefore we must read one.
+    if (key.empty())
+    {
+        InputWindow keyWindow(hInstance, nCmdShow, "Enter your desired key...");
+
+        key = keyWindow.ReadKey();
+
+        // window was aborted
+        if (key.empty())
+            return false;
+    }
+
+    if (key.length() > AES_KEYLEN)
+        return false;
+
+    InputWindow passWindow(hInstance, nCmdShow, "Enter password to encrypt...");
+
+    // the only purpose of this is to give us a way to determine if the password is decrypted successfully later
+    auto newPass = Config::Magic + passWindow.ReadKey();
+
+    // window was aborted
+    if (newPass.empty())
+        return false;
+
+    std::uint8_t keyRaw[AES_KEYLEN];
+    ::memset(keyRaw, 0, sizeof(keyRaw));
+    ::memcpy(keyRaw, key.c_str(), key.length());
+
+    AES_ctx ctx;
+    ZeroMemory(&ctx, sizeof(ctx));
+    AES_init_ctx_iv(&ctx, keyRaw, Config::Iv);
+
+    std::vector<std::uint8_t> buffer(RoundUp(newPass.length(), static_cast<size_t>(AES_BLOCKLEN)));
+
+    ::memcpy(&buffer[0], newPass.c_str(), newPass.length());
+
+    // PKCS7 padding
+    const std::uint8_t pad = static_cast<std::uint8_t>(buffer.size() - newPass.length());
+
+    if (pad > 0)
+        ::memset(&buffer[newPass.length()], pad, pad);
+
+    AES_CBC_encrypt_buffer(&ctx, &buffer[0], buffer.size());
+
+    result = DataToHex(buffer);
+
+    return true;
+}
+
+bool SetClipboardText(const std::string &text)
+{
+    if (!::OpenClipboard(nullptr))
+        return false;
+
+    if (!::EmptyClipboard())
+        return false;
+
+    auto hmem = ::GlobalAlloc(GMEM_MOVEABLE, text.length() + 1);
+    ::memcpy(::GlobalLock(hmem), text.c_str(), text.length() + 1);
+    ::GlobalUnlock(hmem);
+
+    if (!::SetClipboardData(CF_TEXT, hmem))
+        return false;
+
+    if (!::CloseClipboard())
+        return false;
+
+    return true;
 }
 }
 
@@ -172,18 +261,57 @@ int CALLBACK WinMain(
 {
     Config config(_T("config.xml"));
 
+    if (auto const envKey = getenv(EnvKey))
+    {
+        if (!config.VerifyKey(envKey))
+        {
+            ::MessageBoxA(nullptr, "Incorrect key", "Failure", MB_ICONERROR);
+            return EXIT_FAILURE;
+        }
+    }
+    else
+    {
+        bool needAuthentication = false;
+
+        for (auto const &entry : config.entries)
+        {
+            if (!entry.Username.empty() && !entry.Password.empty())
+            {
+                needAuthentication = true;
+                break;
+            }
+        }
+
+        // if some settings provide credentials, we must authenticate the user before we proceed
+        if (needAuthentication)
+        {
+            do
+            {
+                InputWindow authWindow(hInstance, nCmdShow, "Enter your wowreeb key...");
+
+                auto const key = authWindow.ReadKey();
+
+                // window was aborted
+                if (key.empty())
+                    return EXIT_FAILURE;
+
+                if (config.VerifyKey(key))
+                    break;
+
+                ::MessageBoxA(nullptr, "Incorrect key", "Failure", MB_ICONERROR);
+            } while (true);
+        }
+    }
+
     try
     {
-        auto const cmdline = ::GetCommandLineA();
-
-        if (strlen(cmdline) > 0)
+        if (auto const envEntry = getenv(EnvEntry))
         {
             for (auto const &entry : config.entries)
             {
-                if (entry.Name == cmdline)
+                if (entry.Name == envEntry)
                 {
-                    // no need to verify checksum a second time
-                    Launch(entry, config.clearWDB, false);
+                    Launch(entry, config.clearWDB, config.key);
                     return EXIT_SUCCESS;
                 }
             }
@@ -201,15 +329,15 @@ int CALLBACK WinMain(
 #else
                 entry.Name.c_str(),
 #endif
-                [&entry, clearWDB = config.clearWDB] ()
+                [&entry, clearWDB = config.clearWDB, &key = config.key] ()
             {
                 try
                 {
-                    Launch(entry, clearWDB, true);
+                    Launch(entry, clearWDB, key);
                 }
                 catch (std::exception const &e)
                 {
-                    MessageBoxA(nullptr, e.what(), "Launch Exception", 0);
+                    MessageBoxA(nullptr, e.what(), "Launch Exception", MB_ICONERROR);
                 }
             });
         }
@@ -217,6 +345,22 @@ int CALLBACK WinMain(
         icon->AddMenu(_T("-"));
 
         bool shutdown = false;
+
+        icon->AddMenu(_T("Encrypt Password"),
+            [hInstance, nCmdShow, &key = config.key] ()
+            {
+                std::string pw;
+                if (!ReadAndEncryptPassword(hInstance, nCmdShow, key, pw))
+                    return;
+
+                if (!SetClipboardText(pw))
+                {
+                    ::MessageBoxA(nullptr, "Failed to set clipboard data", "Error", MB_ICONERROR);
+                    return;
+                }
+
+                ::MessageBoxA(nullptr, "Encrypted password copied to clipboard", "Success!", MB_ICONINFORMATION);
+            });
 
         icon->AddMenu(_T("Exit"), [&shutdown] () { shutdown = true; });
 
@@ -226,7 +370,7 @@ int CALLBACK WinMain(
     }
     catch (std::exception const &e)
     {
-        MessageBoxA(nullptr, e.what(), "Exception", 0);
+        ::MessageBoxA(nullptr, e.what(), "Exception", MB_ICONERROR);
         return EXIT_FAILURE;
     }
 

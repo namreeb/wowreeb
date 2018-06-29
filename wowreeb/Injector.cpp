@@ -24,6 +24,7 @@
 */
 
 #include "Injector.hpp"
+#include "Config.hpp"
 
 #include <hadesmem/injector.hpp>
 #include <hadesmem/call.hpp>
@@ -47,15 +48,15 @@
 
 namespace
 {
-void EjectionPoll(hadesmem::Process process, HMODULE dll, PVOID remoteBuffer, size_t offset)
+void EjectionPoll(hadesmem::Process process, HMODULE dll, PVOID remoteBuffer)
 {
-    auto const readyByte = static_cast<PVOID>(static_cast<PCHAR>(remoteBuffer) + offset);
+    auto const remoteLocation = reinterpret_cast<bool *>(static_cast<PCHAR>(remoteBuffer) + offsetof(GameSettings, LoadComplete));
 
     do
     {
         try
         {
-            auto const complete = hadesmem::Read<std::uint8_t>(process, readyByte);
+            auto const complete = hadesmem::Read<bool>(process, remoteLocation);
 
             if (complete)
             {
@@ -75,7 +76,7 @@ void EjectionPoll(hadesmem::Process process, HMODULE dll, PVOID remoteBuffer, si
                     str << "Ejection error: " << std::endl;
                     str << boost::diagnostic_information(e) << std::endl;
 
-                    MessageBoxA(nullptr, str.str().c_str(), "Ejection failure", 0);
+                    ::MessageBoxA(nullptr, str.str().c_str(), "Ejection failure", MB_ICONWARNING);
                 }
 
                 return;
@@ -83,7 +84,7 @@ void EjectionPoll(hadesmem::Process process, HMODULE dll, PVOID remoteBuffer, si
         }
         catch (std::exception const &)
         {
-            MessageBoxA(nullptr, "EjectionPoll silent exception", "DEBUG", 0);
+            ::MessageBoxA(nullptr, "EjectionPoll silent exception", "DEBUG", MB_ICONERROR);
 
             // can happen if the process is terminated before initialization has completed.  silently abort this thread..
             return;
@@ -94,59 +95,81 @@ void EjectionPoll(hadesmem::Process process, HMODULE dll, PVOID remoteBuffer, si
 }
 }
 
-unsigned int Inject(
-    const fs::path &exe,
-    const fs::path &ourDll, const std::string &ourMethod,
-    const std::string &authServer, bool console, float fov,
-    const fs::path &nativeDll, const std::string &nativeMethod,
-    const fs::path &clrDll, const std::wstring &clrTypeName, const std::wstring &clrMethodName)
+extern std::wstring make_wstring(const std::string &in);
+
+unsigned int Inject(const ConfigEntry &config)
 {
+    if (config.AuthServer.length() >= sizeof(GameSettings::AuthServer))
+        throw std::runtime_error("Authentication server address too long");
+
     std::vector<std::wstring> createArgs;
 
-    if (console)
+    if (config.Console)
         createArgs.emplace_back(L"-console");
 
     try
     {
-        auto const injectData = hadesmem::CreateAndInject(exe, L"", createArgs.cbegin(), createArgs.cend(), ourDll.wstring(),
+        auto const injectData = hadesmem::CreateAndInject(config.Path, L"", createArgs.cbegin(), createArgs.cend(), config.OurDll,
             "", hadesmem::InjectFlags::kPathResolution | hadesmem::InjectFlags::kKeepSuspended);
 
         auto const process = injectData.GetProcess();
         const hadesmem::Module module(process, injectData.GetModule());
 
-        // we need enough memory to write the AuthServer, with null terminator, and a bool which the
-        // initialization routine will toggle once it has finished, signaling that we can eject the loader
-        std::vector<std::uint8_t> buffer(authServer.length() + 2, 0);
-        std::copy(authServer.begin(), authServer.end(), buffer.begin());
+        GameSettings gameSettings;
 
-        // write the authServer into wow's memory
-        auto const remoteBuffer = hadesmem::Alloc(process, buffer.size());
-        hadesmem::Write(process, remoteBuffer, &buffer[0], buffer.size());;
+        ::memset(&gameSettings, 0, sizeof(gameSettings));
+
+        // include null terminator
+        ::memcpy(gameSettings.AuthServer, config.AuthServer.c_str(), config.AuthServer.length() + 1);
+
+        if (config.Fov > 0.1f)
+        {
+            gameSettings.FoVSet = true;
+            gameSettings.FoV = config.Fov;
+        }
+
+        if (!config.Username.empty() && !config.Password.empty())
+        {
+            // TODO: Move this check into config parsing
+            if (config.Username.length() >= sizeof(GameSettings::Username))
+                throw std::runtime_error("Username is too long");
+
+            if (config.Password.length() >= sizeof(GameSettings::Password))
+                throw std::runtime_error("Password is too long");
+
+            gameSettings.CredentialsSet = true;
+            ::memcpy(gameSettings.Username, config.Username.c_str(), config.Username.length() + 1);
+            ::memcpy(gameSettings.Password, config.Password.c_str(), config.Password.length() + 1);
+        }
+
+        // write the game settings into wow's memory
+        auto const remoteBuffer = hadesmem::Alloc(process, sizeof(gameSettings));
+        hadesmem::Write(process, remoteBuffer, &gameSettings, 1);
 
         // get the address of our load function
-        auto const func = reinterpret_cast<unsigned int(*)(PVOID, float)>(hadesmem::FindProcedure(process, module, ourMethod));
+        auto const func = reinterpret_cast<void(*)(PVOID)>(hadesmem::FindProcedure(process, module, config.OurMethod));
 
         // call our load function with a pointer to our realm list
-        hadesmem::Call(process, func, hadesmem::CallConv::kDefault, remoteBuffer, fov);
+        hadesmem::Call(process, func, hadesmem::CallConv::kDefault, remoteBuffer);
 
         // if a native dll was specified, inject and call given function
-        if (!nativeDll.empty())
+        if (!config.NativeDll.empty())
         {
-            auto const nativeHandle = hadesmem::InjectDll(process, nativeDll.wstring(), hadesmem::InjectFlags::kNone);
-            auto const result = hadesmem::CallExport(process, nativeHandle, nativeMethod);
+            auto const nativeHandle = hadesmem::InjectDll(process, config.NativeDll, hadesmem::InjectFlags::kNone);
+            auto const result = hadesmem::CallExport(process, nativeHandle, config.NativeMethod);
 
             if (!!result.GetReturnValue())
-                MessageBoxA(nullptr, "Native DLL load failed", "Injection failure", 0);
+                ::MessageBoxA(nullptr, "Native DLL load failed", "Injection failure", MB_ICONERROR);
         }
 
         // if a CLR domain manager dll was specified, create a CLR instance in the remote process
-        if (!clrDll.empty())
+        if (!config.CLRDll.empty())
         {
-            fs::path domainDllPath(clrDll);
+            fs::path domainDllPath(config.CLRDll);
 
             // if the path is relative, make it relative to the wow executable
             if (domainDllPath.is_relative())
-                domainDllPath = exe.parent_path() / domainDllPath;
+                domainDllPath = config.Path.parent_path() / domainDllPath;
 
             auto const domainFullPath = domainDllPath.wstring();
 
@@ -154,8 +177,12 @@ unsigned int Inject(
             auto const clrPathBufferSize = sizeof(wchar_t) * (domainFullPath.length() + 1);
             auto const clrPathBuffer = hadesmem::Alloc(process, clrPathBufferSize);
 
+            auto const clrTypeName = make_wstring(config.CLRTypeName);
+
             auto const typeNameBufferSize = sizeof(wchar_t) * (clrTypeName.length() + 1);
             auto const typeNameBuffer = hadesmem::Alloc(process, typeNameBufferSize);
+
+            auto const clrMethodName = make_wstring(config.CLRMethodName);
 
             auto const methodNameBufferSize = sizeof(wchar_t) * (clrMethodName.length() + 1);
             auto const methodNameBuffer = hadesmem::Alloc(process, methodNameBufferSize);
@@ -170,7 +197,7 @@ unsigned int Inject(
             auto const result = hadesmem::Call(process, clrLoad, hadesmem::CallConv::kDefault, clrPathBuffer, typeNameBuffer, methodNameBuffer);
             
             if (!!result.GetReturnValue())
-                MessageBoxA(nullptr, "CLRLoad failed", "Injection failure", 0);
+                ::MessageBoxA(nullptr, "CLRLoad failed", "Injection failure", MB_ICONERROR);
 
             // free the remote buffers
             hadesmem::Free(process, clrPathBuffer);
@@ -182,7 +209,7 @@ unsigned int Inject(
         injectData.ResumeThread();
 
         // create a thread whose purpose is to monitor our remote heap allocated space for the completion byte to be toggled
-        std::thread poll(EjectionPoll, process, injectData.GetModule(), remoteBuffer, buffer.size() - 1);
+        std::thread poll(EjectionPoll, process, injectData.GetModule(), remoteBuffer);
         poll.detach();
 
         return static_cast<unsigned int>(injectData.GetProcess().GetId());
@@ -194,7 +221,7 @@ unsigned int Inject(
         str << "Injection error: " << std::endl;
         str << boost::diagnostic_information(e) << std::endl;
 
-        MessageBoxA(nullptr, str.str().c_str(), "Injection failure", 0);
+        ::MessageBoxA(nullptr, str.str().c_str(), "Injection failure", MB_ICONERROR);
     }
 
     return 0;

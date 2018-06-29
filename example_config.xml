@@ -17,6 +17,9 @@
     
     <!--- Optionally load a CLR/managed DLL.  You must specify the Path as well as the Type and Method to invoke once loaded.  -->
     <CLR Path="D:\Projects\wcs\Debug\wcs.DomainManager.dll" Type="wcs.DomainManager.EntryPoint" Method="Main" />
+
+    <!--- Optional credentials to automatically authenticate as a particular account -->
+    <Credentials Username="namreeb" Password="helloworld" />
   </Realm>
 
   <Realm Name="Classic (Elysium with nampower)">
@@ -28,7 +31,7 @@
       Optionally load a native/unmanaged DLL.  You must specify the Path as well as the Method to invoke once loaded.
       Note that for nampower, the Method should be "Load", as specified here.
       -->
-    <DLL Path="D:\nampower\nampower.dll" Method="Load" />
+    <DLL Path="D:\nampower\nampower.dll" Method="Load" />    
   </Realm>
   
   <Realm Name="TBC (Felmyst)">

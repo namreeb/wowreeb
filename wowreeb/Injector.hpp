@@ -30,9 +30,23 @@
 
 namespace fs = std::experimental::filesystem;
 
-unsigned int Inject(
-    const fs::path &exe,
-    const fs::path &ourDll, const std::string &ourMethod,
-    const std::string &authServer, bool console, float fov,
-    const fs::path &nativeDll, const std::string &nativeMethod,
-    const fs::path &clrDll, const std::wstring &clrTypeName, const std::wstring &clrMethodName);
+// this structure is used within the game so it knows what we have told it to do
+#pragma pack(push, 1)
+struct GameSettings
+{
+    char AuthServer[128];
+
+    bool FoVSet;
+    float FoV;
+
+    bool CredentialsSet;
+    char Username[64];
+    char Password[64];
+
+    bool LoadComplete;
+};
+#pragma pack(pop)
+
+struct ConfigEntry;
+
+unsigned int Inject(const ConfigEntry &config);

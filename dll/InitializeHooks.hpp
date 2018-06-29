@@ -25,27 +25,29 @@
 
 #pragma once
 
+#include "wowreeb/Injector.hpp"  // for GameSettings structure
+
 namespace Classic
 {
-void ApplyClientInitHook(char *authServer, float fov);
+void ApplyClientInitHook(GameSettings *settings);
 }
 
 namespace TBC
 {
-void ApplyClientInitHook(char *authServer, float fov);
+void ApplyClientInitHook(GameSettings *settings);
 }
 
 namespace WOTLK
 {
-void ApplyClientInitHook(char *authServer, float fov);
+void ApplyClientInitHook(GameSettings *settings);
 }
 
 namespace Cata32
 {
-void ApplyClientInitHook(char *authServer, float fov);
+void ApplyClientInitHook(GameSettings *settings);
 }
 
 namespace Cata64
 {
-void ApplyClientInitHook(char *authServer, float fov);
+void ApplyClientInitHook(GameSettings *settings);
 }
