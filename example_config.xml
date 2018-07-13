@@ -19,7 +19,7 @@
     <CLR Path="D:\Projects\wcs\Debug\wcs.DomainManager.dll" Type="wcs.DomainManager.EntryPoint" Method="Main" />
 
     <!--- Optional credentials to automatically authenticate as a particular account -->
-    <Credentials Username="namreeb" Password="helloworld" />
+    <Credentials Username="namreeb" Password="13DF7B1DA8EB7B91DD78E5DF9A9025B6C5B9ECA90CB97E2D7BFA18E6BE6F0A1779F380DC9F6983D2DDED510E55567018" />
   </Realm>
 
   <Realm Name="Classic (Elysium with nampower)">
