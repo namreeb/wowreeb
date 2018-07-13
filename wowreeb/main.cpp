@@ -57,6 +57,20 @@ namespace
 static constexpr char EnvEntry[] = "WOWREEB_ENTRY";
 static constexpr char EnvKey[] = "WOWREEB_KEY";
 
+std::vector<std::uint8_t> ReadFile(const fs::path &file)
+{
+    std::ifstream fd(file, std::ios::binary | std::ios::ate);
+    const size_t size = static_cast<size_t>(fd.tellg());
+    fd.seekg(0, std::ios::beg);
+
+    std::vector<std::uint8_t> result(size);
+
+    if (size > 0)
+        fd.read(reinterpret_cast<char *>(&result[0]), result.size());
+
+    return std::move(result);
+}
+
 void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
 {
     // step 1: ensure exe exists
@@ -75,10 +89,10 @@ void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
     // step 3: verify checksum, if present, only if the platform matches
     if (them32 == us32 && !!entry.SHA256[0])
     {
-        std::ifstream exe(entry.Path, std::ios::binary);
-
+        auto const data = ReadFile(entry.Path);
         std::vector<std::uint8_t> hash(picosha2::k_digest_size);
-        picosha2::hash256(std::istreambuf_iterator<char>(exe), std::istreambuf_iterator<char>(), hash.begin(), hash.end());
+
+        picosha2::hash256(data, hash);
 
         if (!!memcmp(entry.SHA256, &hash[0], hash.size()))
             throw std::runtime_error("Checksum failed");
