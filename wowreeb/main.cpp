@@ -185,7 +185,7 @@ std::string DataToHex(const std::vector<std::uint8_t> &data)
 {
     std::stringstream str;
 
-    str << std::hex << std::uppercase << std::setfill('0');
+    str << std::hex << std::nouppercase << std::setfill('0');
 
     for (auto const &c : data)
         str << std::setw(2) << static_cast<std::uint32_t>(c);
