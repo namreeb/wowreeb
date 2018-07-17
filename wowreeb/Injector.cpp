@@ -73,8 +73,7 @@ void EjectionPoll(hadesmem::Process process, HMODULE dll, PVOID remoteBuffer)
                 {
                     std::stringstream str;
 
-                    str << "Ejection error: " << std::endl;
-                    str << boost::diagnostic_information(e) << std::endl;
+                    str << "Ejection error: \n" << boost::diagnostic_information(e);
 
                     ::MessageBoxA(nullptr, str.str().c_str(), "Ejection failure", MB_ICONWARNING);
                 }
@@ -82,9 +81,13 @@ void EjectionPoll(hadesmem::Process process, HMODULE dll, PVOID remoteBuffer)
                 return;
             }
         }
-        catch (std::exception const &)
+        catch (std::exception const &e)
         {
-            ::MessageBoxA(nullptr, "EjectionPoll silent exception", "DEBUG", MB_ICONERROR);
+            std::stringstream str;
+
+            str << "EjectionPoll silent exception:\n\n" << boost::diagnostic_information(e);
+
+            ::MessageBoxA(nullptr, str.str().c_str(), "DEBUG", MB_ICONERROR);
 
             // can happen if the process is terminated before initialization has completed.  silently abort this thread..
             return;
