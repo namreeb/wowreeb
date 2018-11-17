@@ -101,8 +101,6 @@ Config::Config(const TCHAR *filename)
     const bool us32 = sizeof(void *) == 4;
 
     _ourDll = parent / (us32 ? "wowreeb32.dll" : "wowreeb64.dll");
-
-    Reload();
 }
 
 void Config::Reload()

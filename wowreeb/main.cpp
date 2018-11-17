@@ -275,6 +275,16 @@ int CALLBACK WinMain(
 {
     Config config(_T("config.xml"));
 
+    try
+    {
+        config.Reload();
+    }
+    catch (std::runtime_error const &e)
+    {
+        ::MessageBoxA(nullptr, e.what(), "Configuration Parsing Error", MB_ICONERROR);
+        return EXIT_FAILURE;
+    }
+
     if (auto const envKey = getenv(EnvKey))
     {
         if (!config.VerifyKey(envKey))
