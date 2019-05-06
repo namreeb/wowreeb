@@ -32,6 +32,7 @@
 #include <thread>
 #include <mutex>
 #include <memory>
+#include <sstream>
 
 namespace
 {
@@ -67,6 +68,11 @@ NotifyIconMgr::NotifyIconMgr(HINSTANCE hInstance) : _shutdown(false), _messageTh
     if (!!singleton)
         throw std::runtime_error("Cannot instantiate more than one NotifyIconMgr");
 
+    singleton = this;
+}
+
+void NotifyIconMgr::MessageLoop(HINSTANCE hInstance)
+{
     WNDCLASS wc;
 
     ZeroMemory(&wc, sizeof(wc));
@@ -78,15 +84,16 @@ NotifyIconMgr::NotifyIconMgr(HINSTANCE hInstance) : _shutdown(false), _messageTh
     if (!RegisterClass(&wc))
         throw std::runtime_error("Failed to register window class");
 
-    singleton = this;
-}
-
-void NotifyIconMgr::MessageLoop(HINSTANCE hInstance)
-{
     auto window = ::CreateWindow(className, nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, hInstance, nullptr);
 
     if (!window)
-        throw std::runtime_error("CreateWindow failed");
+    {
+        std::stringstream str;
+
+        str << "Error number = " << ::GetLastError();
+        MessageBoxA(nullptr, str.str().c_str(), "CreateWindow() failed", MB_ICONERROR);
+        return;
+    }
 
     do
     {
