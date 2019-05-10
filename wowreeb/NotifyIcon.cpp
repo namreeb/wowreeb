@@ -43,23 +43,20 @@ NotifyIcon::NotifyIcon(HWND window, unsigned int id, HICON icon, const TCHAR *ti
     if (id > maxId)
         throw std::runtime_error("Too many icons");
 
-    NOTIFYICONDATA add;
+    ZeroMemory(&_addMessage, sizeof(_addMessage));
 
-    ZeroMemory(&add, sizeof(add));
+    _addMessage.cbSize = sizeof(_addMessage);
+    _addMessage.hWnd = window;
+    _addMessage.uID = id;
+    _addMessage.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
+    _addMessage.uCallbackMessage = WM_APP | (id << MenuBits);
+    _addMessage.hIcon = icon;
 
-    add.cbSize = sizeof(add);
-    add.hWnd = window;
-    add.uID = id;
-    add.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
-    add.uCallbackMessage = WM_APP | (id << MenuBits);
-    add.hIcon = icon;
+    StringCchCopy(_addMessage.szTip, ARRAYSIZE(_addMessage.szTip), tip);
 
-    StringCchCopy(add.szTip, ARRAYSIZE(add.szTip), tip);
+    _addMessage.uVersion = NOTIFYICON_VERSION_4;
 
-    add.uVersion = NOTIFYICON_VERSION_4;
-
-    if (!Shell_NotifyIcon(NIM_ADD, &add))
-        throw std::runtime_error("Shell_NotifyIcon failed");
+    CreateIcon();
 }
 
 NotifyIcon::~NotifyIcon()
@@ -73,6 +70,12 @@ NotifyIcon::~NotifyIcon()
     del.uID = _id;
 
     Shell_NotifyIcon(NIM_DELETE, &del);
+}
+
+void NotifyIcon::CreateIcon()
+{
+    if (!Shell_NotifyIcon(NIM_ADD, &_addMessage))
+        throw std::runtime_error("Shell_NotifyIcon failed");
 }
 
 void NotifyIcon::ToggleMenu()

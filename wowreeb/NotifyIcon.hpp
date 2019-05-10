@@ -40,6 +40,8 @@ public:
 private:
     static_assert(IconBits > 0 && MenuBits > 0 && IconBits + MenuBits == 14, "IconBits + MenuBits must be 14");
 
+    NOTIFYICONDATA _addMessage;
+
     HWND _window;
     unsigned int _id;
 
@@ -61,6 +63,8 @@ private:
 public:
     NotifyIcon(HWND window, unsigned int id, HICON icon, const TCHAR *tip);
     ~NotifyIcon();
+
+    void CreateIcon();
 
     void ToggleMenu();
 

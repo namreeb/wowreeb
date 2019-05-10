@@ -36,6 +36,8 @@ class NotifyIcon;
 class NotifyIconMgr
 {
 private:
+    UINT _taskbarCreated;
+
     bool _shutdown;
 
     std::thread _messageThread;
@@ -53,6 +55,10 @@ public:
         _shutdown = true;
         _messageThread.join();
     }
+
+    void Create();
+    bool IsTaskbarCreated(UINT msg) const { return _taskbarCreated > 0 && _taskbarCreated == msg; }
+    void TaskbarCreated();
 
     bool Command(HWND hWnd, unsigned int iconId, unsigned int menuId);
     bool WindowProc(HWND hWnd, unsigned int iconId, WPARAM wParam, LPARAM lParam);

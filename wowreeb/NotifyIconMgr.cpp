@@ -52,18 +52,23 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             if (singleton->Command(hWnd, iconId, menuId))
                 return TRUE;
         }
-        else if (msg >= WM_APP)
+        else if (msg >= WM_APP && msg <= 0xBFFF)
         {
             if (singleton->WindowProc(hWnd, msg - WM_APP, wParam, lParam))
                 return TRUE;
         }
+        else if (msg == WM_CREATE)
+            singleton->Create();
+        else if (singleton->IsTaskbarCreated(msg))
+            singleton->TaskbarCreated();
     }
 
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 }
 
-NotifyIconMgr::NotifyIconMgr(HINSTANCE hInstance) : _shutdown(false), _messageThread(&NotifyIconMgr::MessageLoop, this, hInstance)
+NotifyIconMgr::NotifyIconMgr(HINSTANCE hInstance)
+    : _taskbarCreated(0u), _shutdown(false), _messageThread(&NotifyIconMgr::MessageLoop, this, hInstance)
 {
     if (!!singleton)
         throw std::runtime_error("Cannot instantiate more than one NotifyIconMgr");
@@ -122,6 +127,20 @@ void NotifyIconMgr::MessageLoop(HINSTANCE hInstance)
         std::lock_guard<std::mutex> guard(_mutex);
         _icons.clear();
     }
+}
+
+void NotifyIconMgr::Create()
+{
+    _taskbarCreated = RegisterWindowMessage(_T("TaskbarCreated"));
+}
+
+// tell all notification area icons to recreate themselves
+void NotifyIconMgr::TaskbarCreated()
+{
+    std::lock_guard<std::mutex> guard(_mutex);
+
+    for (auto &icon : _icons)
+        icon->CreateIcon();
 }
 
 bool NotifyIconMgr::Command(HWND hWnd, unsigned int iconId, unsigned int menuId)
