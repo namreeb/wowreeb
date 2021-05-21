@@ -45,7 +45,7 @@ There are two optional environment variables which can be set when launching wow
 
 ## Technical Information
 
-This application is written in C++.  It includes a 32 bit and 64 bit executable and DLL.  The project depends on hadesmem (https://github.com/RaptorFactor/hadesmem).  When the helper DLL is loaded by a newly launched World of Warcraft process, it will adjust the environment in the manner requested by the launcher.  This includes setting the name of the authentication server and optionally adjusting the graphics engine field-of-view (FoV) value.
+This application is written in C++.  It includes a 32 bit and 64 bit executable and DLL.  The project depends on hadesmem (https://github.com/namreeb/hadesmem).  When the helper DLL is loaded by a newly launched World of Warcraft process, it will adjust the environment in the manner requested by the launcher.  This includes setting the name of the authentication server and optionally adjusting the graphics engine field-of-view (FoV) value.
 
 ## Support ##
 
