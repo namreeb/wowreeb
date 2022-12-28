@@ -48,8 +48,6 @@
 
 #pragma comment (lib, "imagehlp.lib")
 
-namespace fs = std::experimental::filesystem;
-
 extern std::wstring make_wstring(const std::string &in);
 
 namespace

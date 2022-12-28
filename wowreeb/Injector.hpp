@@ -28,7 +28,7 @@
 #include <string>
 #include <filesystem>
 
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 
 // this structure is used within the game so it knows what we have told it to do
 #pragma pack(push, 1)

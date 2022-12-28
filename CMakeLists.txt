@@ -3,7 +3,7 @@ project(wowreeb)
 cmake_minimum_required(VERSION 3.2.3)
 
 # wowreeb depends on a compiler which supports C++14
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # threading library is required
@@ -45,7 +45,16 @@ endif()
 set(HADESMEM_LIB_DIR "${HADESMEM_ROOT}/build/vs/${HADESMEM_BUILD}/${HADESMEM_ARCH}")
 message(STATUS "hadesmem library directory: ${HADESMEM_LIB_DIR}")
 
-add_definitions(-DUNICODE -D_UNICODE -D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS -DASMJIT_STATIC -DASMJIT_BUILD_X86)
+add_definitions(
+    -DUNICODE
+    -D_UNICODE
+    -D_SCL_SECURE_NO_WARNINGS
+    -D_CRT_SECURE_NO_WARNINGS
+    -D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING
+    -DASMJIT_STATIC
+    -DASMJIT_BUILD_X86
+)
+
 include_directories(Include
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${Boost_INCLUDE_DIR}"
