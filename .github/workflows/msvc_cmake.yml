@@ -1,0 +1,48 @@
+name: CMake
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        toolset: [v142]
+        configuration: [Release]
+        platform: [Win32, x64]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Download hadesmem release
+      run: |
+        Invoke-WebRequest https://github.com/namreeb/hadesmem/releases/download/v1.7.0/hadesmem-${{ matrix.toolset }}-${{ matrix.configuration }}-${{ matrix.platform }}.zip
+        Expand-Archive -Path boost.zip -DestinationPath .
+
+    - name: Download Boost
+      run: |
+        Invoke-WebRequest https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.zip -OutFile boost.zip
+        Expand-Archive -Path boost.zip -DestinationPath .
+        dir
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DBOOST_ROOT=boost_1_73_0 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/artifact
+
+    - name: Build
+      run: |
+        cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+        cmake --install ${{github.workspace}}/build
+
+    - name: Publish artifact
+      uses: actions/upload-artifact@v2
+      with:	
+        name: dumpwow
+        path: ${{ github.workspace }}/artifact/**/*
+
