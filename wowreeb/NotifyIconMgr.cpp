@@ -46,8 +46,10 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         if (msg == WM_COMMAND && wParam >= WM_APP)
         {
-            auto iconId = (wParam & ~WM_APP) >> NotifyIcon::MenuBits;
-            auto menuId = (wParam & ((1 << NotifyIcon::MenuBits) - 1));
+            auto const iconId = static_cast<unsigned int>((wParam & ~WM_APP) >>
+                                                          NotifyIcon::MenuBits);
+            auto const menuId = static_cast<unsigned int>(
+                wParam & ((1 << NotifyIcon::MenuBits) - 1));
 
             if (singleton->Command(hWnd, iconId, menuId))
                 return TRUE;
