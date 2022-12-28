@@ -52,8 +52,7 @@ struct ConfigEntry
     fs::path OurDll;
     std::string OurMethod;
 
-    fs::path NativeDll;
-    std::string NativeMethod;
+    std::vector<std::pair<fs::path, std::string>> NativeDlls;
 
     fs::path CLRDll;
     std::string CLRTypeName;

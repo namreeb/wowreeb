@@ -100,9 +100,10 @@ void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
     if (!fs::exists(entry.OurDll))
         throw std::runtime_error("wowreeb.dll not found");
 
-    // step 5: ensure native dll exists, if present
-    if (!entry.NativeDll.empty() && !fs::exists(entry.NativeDll))
-        throw std::runtime_error("Native DLL not found");
+    // step 5: ensure native dlls exists, if present
+    for (auto const &dll : entry.NativeDlls)
+        if (!fs::exists(dll.first))
+            throw std::runtime_error("Native DLL not found");
 
     // step 6: ensure clr dll exists, if present
     if (!entry.CLRDll.empty() && !fs::exists(entry.CLRDll))

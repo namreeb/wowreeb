@@ -275,14 +275,17 @@ void Config::Reload()
                 }
                 else if (cname == "DLL")
                 {
+                    fs::path dll_path {};
+                    std::string dll_method {};
+
                     for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
                     {
                         const std::string rname(r->name());
 
                         if (rname == "Path")
-                            ins.NativeDll = r->value();
+                            dll_path = r->value();
                         else if (rname == "Method")
-                            ins.NativeMethod = r->value();
+                            dll_method = r->value();
                         else
                         {
                             std::stringstream str;
@@ -290,6 +293,9 @@ void Config::Reload()
                             throw std::runtime_error(str.str().c_str());
                         }
                     }
+
+                    if (!dll_path.empty())
+                        ins.NativeDlls.emplace_back(dll_path, dll_method);
                 }
                 else if (cname == "Credentials")
                 {

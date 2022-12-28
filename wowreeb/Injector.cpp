@@ -155,15 +155,15 @@ unsigned int Inject(const ConfigEntry &config)
         // call our load function with a pointer to our realm list
         hadesmem::Call(process, func, hadesmem::CallConv::kDefault, remoteBuffer);
 
-        // if a native dll was specified, inject and call given function
-        if (!config.NativeDll.empty())
+        // inject all native dlls, calling methods where specified
+        for (auto const& dll : config.NativeDlls)
         {
-            auto const nativeHandle = hadesmem::InjectDll(process, config.NativeDll, hadesmem::InjectFlags::kNone);
+            auto const nativeHandle = hadesmem::InjectDll(process, dll.first, hadesmem::InjectFlags::kNone);
 
-            if (!config.NativeMethod.empty())
+            if (!dll.second.empty())
             {
-                auto const result = hadesmem::CallExport(process, nativeHandle,
-                                                         config.NativeMethod);
+                auto const result =
+                    hadesmem::CallExport(process, nativeHandle, dll.second);
 
                 if (!!result.GetReturnValue())
                     ::MessageBoxA(nullptr, "Native DLL load failed",
