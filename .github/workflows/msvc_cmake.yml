@@ -48,3 +48,10 @@ jobs:
         name: dumpwow
         path: ${{ github.workspace }}/artifact/**/*
 
+    - uses: softprops/action-gh-release@v1
+      name: Upload assets to release
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        draft: true
+        files: dumpwow-${{ github.ref_name }}.zip
+        fail_on_unmatched_files: true
