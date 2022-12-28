@@ -2,7 +2,7 @@ name: CMake
 
 on:
   push:
-    #branches: [ master ]
+    branches: [ master ]
   pull_request:
     branches: [ master ]
 
@@ -43,7 +43,7 @@ jobs:
         cmake --install ${{github.workspace}}/build
 
     - name: Publish artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:	
-        name: wowreeb-${{ github.ref_name }}.zip
+        name: wowreeb-${{ github.ref_name }}
         path: ${{ github.workspace }}/artifact/**/*
