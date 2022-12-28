@@ -33,7 +33,7 @@ jobs:
         dir
 
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DBOOST_ROOT=boost_1_73_0 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/artifact
+      run: cmake -B ${{github.workspace}}/build -DHADESMEM_ROOT=hadesmem-${{ matrix.toolset }}-${{ matrix.configuration }}-${{ matrix.platform }} -DBOOST_ROOT=boost_1_73_0 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/artifact
 
     - name: Build
       run: |
