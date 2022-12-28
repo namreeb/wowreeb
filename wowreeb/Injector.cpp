@@ -159,10 +159,16 @@ unsigned int Inject(const ConfigEntry &config)
         if (!config.NativeDll.empty())
         {
             auto const nativeHandle = hadesmem::InjectDll(process, config.NativeDll, hadesmem::InjectFlags::kNone);
-            auto const result = hadesmem::CallExport(process, nativeHandle, config.NativeMethod);
 
-            if (!!result.GetReturnValue())
-                ::MessageBoxA(nullptr, "Native DLL load failed", "Injection failure", MB_ICONERROR);
+            if (!config.NativeMethod.empty())
+            {
+                auto const result = hadesmem::CallExport(process, nativeHandle,
+                                                         config.NativeMethod);
+
+                if (!!result.GetReturnValue())
+                    ::MessageBoxA(nullptr, "Native DLL load failed",
+                                  "Injection failure", MB_ICONERROR);
+            }
         }
 
         // if a CLR domain manager dll was specified, create a CLR instance in the remote process
