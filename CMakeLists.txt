@@ -42,7 +42,14 @@ else()
     set(HADESMEM_ARCH "Win32")
 endif()
 
-set(HADESMEM_LIB_DIR "${HADESMEM_ROOT}/build/vs/${HADESMEM_BUILD}/${HADESMEM_ARCH}")
+if (EXISTS "${HADESMEM_ROOT}/build/vs/${HADESMEM_BUILD}/${HADESMEM_ARCH}")
+    set(HADESMEM_LIB_DIR "${HADESMEM_ROOT}/build/vs/${HADESMEM_BUILD}/${HADESMEM_ARCH}")
+elseif (EXISTS "${HADESMEM_ROOT}/lib")
+    set(HADESMEM_LIB_DIR "${HADESMEM_ROOT}/lib")
+else()
+    message(FATAL_ERROR "hadesmem libraries not found")
+endif()
+
 message(STATUS "hadesmem library directory: ${HADESMEM_LIB_DIR}")
 
 add_definitions(
