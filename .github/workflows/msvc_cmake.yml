@@ -23,8 +23,8 @@ jobs:
 
     - name: Download hadesmem release
       run: |
-        Invoke-WebRequest https://github.com/namreeb/hadesmem/releases/download/v1.7.0/hadesmem-${{ matrix.toolset }}-${{ matrix.configuration }}-${{ matrix.platform }}.zip
-        Expand-Archive -Path boost.zip -DestinationPath .
+        Invoke-WebRequest https://github.com/namreeb/hadesmem/releases/download/v1.7.0/hadesmem-${{ matrix.toolset }}-${{ matrix.configuration }}-${{ matrix.platform }}.zip -OutFile hadesmem.zip
+        Expand-Archive -Path hadesmem.zip -DestinationPath .
 
     - name: Download Boost
       run: |
