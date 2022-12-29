@@ -7,6 +7,10 @@ This application was made to have a reliable and efficient way to launch differe
 
 Included in the source as well as binary tarballs is an `example_config.xml` file.  Use this as a guide for configuring wowreeb for your system.  **It must be renamed to `config.xml` in order for wowreeb to find it.**  Explanations for the various settings are included in comments in the example configuration file.
 
+## New in Version 3.5
+
+Allow multiple native DLLs to be loaded and made callable method optional.
+
 ## New In Version 3.0
 
 ### Automatic Login! ###
