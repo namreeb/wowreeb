@@ -28,9 +28,8 @@
 
 #include "InitializeHooks.hpp"
 
-#include <hadesmem/patcher.hpp>
-
 #include <cstdint>
+#include <hadesmem/patcher.hpp>
 
 namespace
 {
@@ -57,8 +56,9 @@ enum class Offset
 
 PVOID GetAddress(Version version, Offset offset)
 {
-    static constexpr std::uint32_t offsets[static_cast<int>(Version::Total)][static_cast<int>(Offset::Total)] =
-    {
+    static constexpr std::uint32_t offsets[static_cast<int>(
+        Version::Total)][static_cast<int>(Offset::Total)] = {
+        // clang-format off
         // Classic
         {
             0x23DF50,
@@ -104,32 +104,41 @@ PVOID GetAddress(Version version, Offset offset)
             0x514100,
             0x00,   // not supported.  let me know if anyone actually wants this
         }
+        // clang-format on
     };
 
-    auto const baseAddress = reinterpret_cast<std::uint8_t *>(::GetModuleHandle(nullptr));
+    auto const baseAddress =
+        reinterpret_cast<std::uint8_t*>(::GetModuleHandle(nullptr));
 
-    return baseAddress + offsets[static_cast<int>(version)][static_cast<int>(offset)];
+    return baseAddress +
+           offsets[static_cast<int>(version)][static_cast<int>(offset)];
 }
-}
+} // namespace
 
 namespace Classic
 {
-class CVar {};
+class CVar
+{
+};
 
-using SetT = bool(__thiscall CVar::*)(const char *, char, char, char, char);
-using IdleT = int(__cdecl *)();
-using LoginT = void(__fastcall *)(char *, char *);
+using SetT = bool (__thiscall CVar::*)(const char*, char, char, char, char);
+using IdleT = int(__cdecl*)();
+using LoginT = void(__fastcall*)(char*, char*);
 
-int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
+int IdleHook(hadesmem::PatchDetourBase* detour, GameSettings* settings)
 {
     auto const idle = detour->GetTrampolineT<IdleT>();
     auto const ret = idle();
 
-    // if we are no longer waiting for the server alert, proceed with configuration
-    if (!*reinterpret_cast<std::uint32_t *>(GetAddress(Version::Classic, Offset::CGlueMgr__m_pendingServerAlert)))
+    // if we are no longer waiting for the server alert, proceed with
+    // configuration
+    if (!*reinterpret_cast<std::uint32_t*>(
+            GetAddress(Version::Classic, Offset::CGlueMgr__m_pendingServerAlert)))
     {
-        auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::Classic, Offset::RealmListCVar));
-        auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::Classic, Offset::CVar__Set));
+        auto const cvar = *reinterpret_cast<CVar**>(
+            GetAddress(Version::Classic, Offset::RealmListCVar));
+        auto const set = hadesmem::detail::AliasCast<SetT>(
+            GetAddress(Version::Classic, Offset::CVar__Set));
 
         (cvar->*set)(settings->AuthServer, 1, 0, 1, 0);
 
@@ -137,7 +146,8 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
 
         if (settings->CredentialsSet)
         {
-            auto const login = hadesmem::detail::AliasCast<LoginT>(GetAddress(Version::Classic, Offset::Login));
+            auto const login = hadesmem::detail::AliasCast<LoginT>(
+                GetAddress(Version::Classic, Offset::Login));
             login(settings->Username, settings->Password);
         }
 
@@ -147,18 +157,19 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
     return ret;
 }
 
-void ApplyClientInitHook(GameSettings *settings)
+void ApplyClientInitHook(GameSettings* settings)
 {
     // just to make sure the value is initialized
-    *reinterpret_cast<std::uint32_t *>(GetAddress(Version::Classic, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
+    *reinterpret_cast<std::uint32_t*>(
+        GetAddress(Version::Classic, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
 
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(GetAddress(Version::Classic, Offset::Idle));
-    auto idleDetour = new hadesmem::PatchDetour<IdleT>(proc, idleOrig,
-        [settings] (hadesmem::PatchDetourBase *detour)
-        {
-            return IdleHook(detour, settings);
-        });
+    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(
+        GetAddress(Version::Classic, Offset::Idle));
+    auto idleDetour = new hadesmem::PatchDetour<IdleT>(
+        proc, idleOrig,
+        [settings](hadesmem::PatchDetourBase* detour)
+        { return IdleHook(detour, settings); });
 
     idleDetour->Apply();
 
@@ -171,26 +182,32 @@ void ApplyClientInitHook(GameSettings *settings)
         patch->Apply();
     }
 }
-}
+} // namespace Classic
 
 namespace TBC
 {
-class CVar {};
+class CVar
+{
+};
 
-using SetT = bool(__thiscall CVar::*)(const char *, char, char, char, char);
-using IdleT = int (__cdecl*)();
-using LoginT = void(__cdecl *)(char *, char *);
+using SetT = bool (__thiscall CVar::*)(const char*, char, char, char, char);
+using IdleT = int(__cdecl*)();
+using LoginT = void(__cdecl*)(char*, char*);
 
-int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
+int IdleHook(hadesmem::PatchDetourBase* detour, GameSettings* settings)
 {
     auto const idle = detour->GetTrampolineT<IdleT>();
     auto const ret = idle();
 
-    // if we are no longer waiting for the server alert, proceed with configuration
-    if (!*reinterpret_cast<std::uint32_t *>(GetAddress(Version::TBC, Offset::CGlueMgr__m_pendingServerAlert)))
+    // if we are no longer waiting for the server alert, proceed with
+    // configuration
+    if (!*reinterpret_cast<std::uint32_t*>(
+            GetAddress(Version::TBC, Offset::CGlueMgr__m_pendingServerAlert)))
     {
-        auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::TBC, Offset::RealmListCVar));
-        auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::TBC, Offset::CVar__Set));
+        auto const cvar = *reinterpret_cast<CVar**>(
+            GetAddress(Version::TBC, Offset::RealmListCVar));
+        auto const set = hadesmem::detail::AliasCast<SetT>(
+            GetAddress(Version::TBC, Offset::CVar__Set));
 
         (cvar->*set)(settings->AuthServer, 1, 0, 1, 0);
 
@@ -198,7 +215,8 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
 
         if (settings->CredentialsSet)
         {
-            auto const login = hadesmem::detail::AliasCast<LoginT>(GetAddress(Version::TBC, Offset::Login));
+            auto const login = hadesmem::detail::AliasCast<LoginT>(
+                GetAddress(Version::TBC, Offset::Login));
             login(settings->Username, settings->Password);
         }
 
@@ -208,18 +226,19 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
     return ret;
 }
 
-void ApplyClientInitHook(GameSettings *settings)
+void ApplyClientInitHook(GameSettings* settings)
 {
     // just to make sure the value is initialized
-    *reinterpret_cast<std::uint32_t *>(GetAddress(Version::TBC, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
+    *reinterpret_cast<std::uint32_t*>(
+        GetAddress(Version::TBC, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
 
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(GetAddress(Version::TBC, Offset::Idle));
-    auto idleDetour = new hadesmem::PatchDetour<IdleT>(proc, idleOrig,
-        [settings] (hadesmem::PatchDetourBase *detour)
-        {
-            return IdleHook(detour, settings);
-        });
+    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(
+        GetAddress(Version::TBC, Offset::Idle));
+    auto idleDetour = new hadesmem::PatchDetour<IdleT>(
+        proc, idleOrig,
+        [settings](hadesmem::PatchDetourBase* detour)
+        { return IdleHook(detour, settings); });
 
     idleDetour->Apply();
 
@@ -232,26 +251,32 @@ void ApplyClientInitHook(GameSettings *settings)
         patch->Apply();
     }
 }
-}
+} // namespace TBC
 
 namespace WOTLK
 {
-class CVar {};
+class CVar
+{
+};
 
-using SetT = bool(__thiscall CVar::*)(const char *, char, char, char, char);
-using IdleT = int (__cdecl *)();
-using LoginT = void(__cdecl *)(char *, char *);
+using SetT = bool (__thiscall CVar::*)(const char*, char, char, char, char);
+using IdleT = int(__cdecl*)();
+using LoginT = void(__cdecl*)(char*, char*);
 
-int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
+int IdleHook(hadesmem::PatchDetourBase* detour, GameSettings* settings)
 {
     auto const idle = detour->GetTrampolineT<IdleT>();
     auto const ret = idle();
 
-    // if we are no longer waiting for the server alert, proceed with configuration
-    if (!*reinterpret_cast<std::uint32_t *>(GetAddress(Version::WotLK, Offset::CGlueMgr__m_pendingServerAlert)))
+    // if we are no longer waiting for the server alert, proceed with
+    // configuration
+    if (!*reinterpret_cast<std::uint32_t*>(
+            GetAddress(Version::WotLK, Offset::CGlueMgr__m_pendingServerAlert)))
     {
-        auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::WotLK, Offset::RealmListCVar));
-        auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::WotLK, Offset::CVar__Set));
+        auto const cvar = *reinterpret_cast<CVar**>(
+            GetAddress(Version::WotLK, Offset::RealmListCVar));
+        auto const set = hadesmem::detail::AliasCast<SetT>(
+            GetAddress(Version::WotLK, Offset::CVar__Set));
 
         (cvar->*set)(settings->AuthServer, 1, 0, 1, 0);
 
@@ -259,7 +284,8 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
 
         if (settings->CredentialsSet)
         {
-            auto const login = hadesmem::detail::AliasCast<LoginT>(GetAddress(Version::WotLK, Offset::Login));
+            auto const login = hadesmem::detail::AliasCast<LoginT>(
+                GetAddress(Version::WotLK, Offset::Login));
             login(settings->Username, settings->Password);
         }
 
@@ -269,18 +295,19 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
     return ret;
 }
 
-void ApplyClientInitHook(GameSettings *settings)
+void ApplyClientInitHook(GameSettings* settings)
 {
     // just to make sure the value is initialized
-    *reinterpret_cast<std::uint32_t *>(GetAddress(Version::WotLK, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
+    *reinterpret_cast<std::uint32_t*>(
+        GetAddress(Version::WotLK, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
 
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(GetAddress(Version::WotLK, Offset::Idle));
-    auto idleDetour = new hadesmem::PatchDetour<IdleT>(proc, idleOrig,
-        [settings] (hadesmem::PatchDetourBase *detour)
-        {
-            return IdleHook(detour, settings);
-        });
+    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(
+        GetAddress(Version::WotLK, Offset::Idle));
+    auto idleDetour = new hadesmem::PatchDetour<IdleT>(
+        proc, idleOrig,
+        [settings](hadesmem::PatchDetourBase* detour)
+        { return IdleHook(detour, settings); });
 
     idleDetour->Apply();
 
@@ -293,26 +320,32 @@ void ApplyClientInitHook(GameSettings *settings)
         patch->Apply();
     }
 }
-}
+} // namespace WOTLK
 
 namespace Cata32
 {
-class CVar {};
+class CVar
+{
+};
 
-using SetT = bool(__thiscall CVar::*)(const char *, char, char, char, char);
-using IdleT = int(__cdecl *)();
-using LoginT = void(__cdecl *)(char *, char *);
+using SetT = bool (__thiscall CVar::*)(const char*, char, char, char, char);
+using IdleT = int(__cdecl*)();
+using LoginT = void(__cdecl*)(char*, char*);
 
-int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
+int IdleHook(hadesmem::PatchDetourBase* detour, GameSettings* settings)
 {
     auto const idle = detour->GetTrampolineT<IdleT>();
     auto const ret = idle();
 
-    // if we are no longer waiting for the server alert, proceed with configuration
-    if (!*reinterpret_cast<std::uint32_t *>(GetAddress(Version::Cata32, Offset::CGlueMgr__m_pendingServerAlert)))
+    // if we are no longer waiting for the server alert, proceed with
+    // configuration
+    if (!*reinterpret_cast<std::uint32_t*>(
+            GetAddress(Version::Cata32, Offset::CGlueMgr__m_pendingServerAlert)))
     {
-        auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::Cata32, Offset::RealmListCVar));
-        auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::Cata32, Offset::CVar__Set));
+        auto const cvar = *reinterpret_cast<CVar**>(
+            GetAddress(Version::Cata32, Offset::RealmListCVar));
+        auto const set = hadesmem::detail::AliasCast<SetT>(
+            GetAddress(Version::Cata32, Offset::CVar__Set));
 
         (cvar->*set)(settings->AuthServer, 1, 0, 1, 0);
 
@@ -320,7 +353,8 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
 
         if (settings->CredentialsSet)
         {
-            auto const login = hadesmem::detail::AliasCast<LoginT>(GetAddress(Version::Cata32, Offset::Login));
+            auto const login = hadesmem::detail::AliasCast<LoginT>(
+                GetAddress(Version::Cata32, Offset::Login));
             login(settings->Username, settings->Password);
         }
 
@@ -330,41 +364,48 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
     return ret;
 }
 
-void ApplyClientInitHook(GameSettings *settings)
+void ApplyClientInitHook(GameSettings* settings)
 {
     // just to make sure the value is initialized
-    *reinterpret_cast<std::uint32_t *>(GetAddress(Version::Cata32, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
+    *reinterpret_cast<std::uint32_t*>(
+        GetAddress(Version::Cata32, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
 
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(GetAddress(Version::Cata32, Offset::Idle));
-    auto idleDetour = new hadesmem::PatchDetour<IdleT>(proc, idleOrig,
-        [settings](hadesmem::PatchDetourBase *detour)
-        {
-            return IdleHook(detour, settings);
-        });
+    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(
+        GetAddress(Version::Cata32, Offset::Idle));
+    auto idleDetour = new hadesmem::PatchDetour<IdleT>(
+        proc, idleOrig,
+        [settings](hadesmem::PatchDetourBase* detour)
+        { return IdleHook(detour, settings); });
 
     idleDetour->Apply();
 }
-}
+} // namespace Cata32
 
 namespace Cata64
 {
-class CVar {};
+class CVar
+{
+};
 
-using SetT = bool(__fastcall CVar::*)(const char *, char, char, char, char);
-using IdleT = int (__stdcall *)();
-using LoginT = void(__fastcall *)(char *, char *);
+using SetT = bool (__fastcall CVar::*)(const char*, char, char, char, char);
+using IdleT = int(__stdcall*)();
+using LoginT = void(__fastcall*)(char*, char*);
 
-int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
+int IdleHook(hadesmem::PatchDetourBase* detour, GameSettings* settings)
 {
     auto const idle = detour->GetTrampolineT<IdleT>();
     auto const ret = idle();
 
-    // if we are no longer waiting for the server alert, proceed with configuration
-    if (!*reinterpret_cast<std::uint32_t *>(GetAddress(Version::Cata64, Offset::CGlueMgr__m_pendingServerAlert)))
+    // if we are no longer waiting for the server alert, proceed with
+    // configuration
+    if (!*reinterpret_cast<std::uint32_t*>(
+            GetAddress(Version::Cata64, Offset::CGlueMgr__m_pendingServerAlert)))
     {
-        auto const cvar = *reinterpret_cast<CVar **>(GetAddress(Version::Cata64, Offset::RealmListCVar));
-        auto const set = hadesmem::detail::AliasCast<SetT>(GetAddress(Version::Cata64, Offset::CVar__Set));
+        auto const cvar = *reinterpret_cast<CVar**>(
+            GetAddress(Version::Cata64, Offset::RealmListCVar));
+        auto const set = hadesmem::detail::AliasCast<SetT>(
+            GetAddress(Version::Cata64, Offset::CVar__Set));
 
         (cvar->*set)(settings->AuthServer, 1, 0, 1, 0);
 
@@ -372,7 +413,8 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
 
         if (settings->CredentialsSet)
         {
-            auto const login = hadesmem::detail::AliasCast<LoginT>(GetAddress(Version::Cata64, Offset::Login));
+            auto const login = hadesmem::detail::AliasCast<LoginT>(
+                GetAddress(Version::Cata64, Offset::Login));
             login(settings->Username, settings->Password);
         }
 
@@ -382,19 +424,20 @@ int IdleHook(hadesmem::PatchDetourBase *detour, GameSettings *settings)
     return ret;
 }
 
-void ApplyClientInitHook(GameSettings *settings)
+void ApplyClientInitHook(GameSettings* settings)
 {
     // just to make sure the value is initialized
-    *reinterpret_cast<std::uint32_t *>(GetAddress(Version::Cata64, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
+    *reinterpret_cast<std::uint32_t*>(
+        GetAddress(Version::Cata64, Offset::CGlueMgr__m_pendingServerAlert)) = 1;
 
     auto const proc = hadesmem::Process(::GetCurrentProcessId());
-    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(GetAddress(Version::Cata64, Offset::Idle));
-    auto idleDetour = new hadesmem::PatchDetour<IdleT>(proc, idleOrig,
-        [settings] (hadesmem::PatchDetourBase *detour)
-        {
-            return IdleHook(detour, settings);
-        });
+    auto const idleOrig = hadesmem::detail::AliasCast<IdleT>(
+        GetAddress(Version::Cata64, Offset::Idle));
+    auto idleDetour = new hadesmem::PatchDetour<IdleT>(
+        proc, idleOrig,
+        [settings](hadesmem::PatchDetourBase* detour)
+        { return IdleHook(detour, settings); });
 
     idleDetour->Apply();
 }
-}
+} // namespace Cata64

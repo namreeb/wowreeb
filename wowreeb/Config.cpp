@@ -1,46 +1,47 @@
 /*
-    MIT License
+  MIT License
 
-    Copyright (c) 2018-2019 namreeb http://github.com/namreeb legal@namreeb.org
+  Copyright (c) 2018-2019 namreeb http://github.com/namreeb legal@namreeb.org
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 
 */
 
 #include "Config.hpp"
+
 #include "rapidxml/rapidxml.hpp"
 #include "tiny-AES-c/aes.hpp"
 
-#include <filesystem>
-#include <stdexcept>
-#include <vector>
-#include <fstream>
-#include <string>
-#include <algorithm>
-#include <sstream>
-#include <cstdint>
 #include <Windows.h>
+#include <algorithm>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
 #include <tchar.h>
+#include <vector>
 
 namespace
 {
-std::vector<char> ReadFile(const fs::path &file)
+std::vector<char> ReadFile(const fs::path& file)
 {
     std::ifstream f(file.string());
     f.seekg(0, std::ios::end);
@@ -72,11 +73,12 @@ std::uint8_t HexCharsToByte(char a, char b)
 
     return (aVal << 4) | bVal;
 }
-}
+} // namespace
 
-Config::Config(const TCHAR *filename)
+Config::Config(const TCHAR* filename)
 {
-    // first try the filename as-is.  this will handle absolute paths and paths relative to the current directory
+    // first try the filename as-is.  this will handle absolute paths and paths
+    // relative to the current directory
     fs::path f(filename);
 
     TCHAR filebuff[1024];
@@ -98,7 +100,7 @@ Config::Config(const TCHAR *filename)
 
     _path = f;
 
-    const bool us32 = sizeof(void *) == 4;
+    const bool us32 = sizeof(void*) == 4;
 
     _ourDll = parent / (us32 ? "wowreeb32.dll" : "wowreeb64.dll");
 }
@@ -144,7 +146,8 @@ void Config::Reload()
                 else
                 {
                     std::stringstream str;
-                    str << "Unexpected " << name << " attribute \"" << rname << "\"";
+                    str << "Unexpected " << name << " attribute \"" << rname
+                        << "\"";
                     throw std::runtime_error(str.str().c_str());
                 }
             }
@@ -158,7 +161,8 @@ void Config::Reload()
 
                 if (cname == "Exe")
                 {
-                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    for (auto r = c->first_attribute(); !!r;
+                         r = r->next_attribute())
                     {
                         const std::string rname(r->name());
 
@@ -169,26 +173,31 @@ void Config::Reload()
                             if (r->value_size() != 2 * picosha2::k_digest_size)
                             {
                                 std::stringstream str;
-                                str << "Exe SHA256 for \"" << ins.Name << "\" is wrong size.  Should be " << picosha2::k_digest_size << " bytes";
+                                str << "Exe SHA256 for \"" << ins.Name
+                                    << "\" is wrong size.  Should be "
+                                    << picosha2::k_digest_size << " bytes";
                                 throw std::runtime_error(str.str().c_str());
                             }
 
                             const std::string hash(r->value());
 
                             for (auto i = 0u; i < sizeof(ins.SHA256); ++i)
-                                ins.SHA256[i] = HexCharsToByte(hash[i * 2], hash[i * 2 + 1]);
+                                ins.SHA256[i] =
+                                    HexCharsToByte(hash[i * 2], hash[i * 2 + 1]);
                         }
                         else
                         {
                             std::stringstream str;
-                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            str << "Unexpected " << cname << " attribute \""
+                                << rname << "\"";
                             throw std::runtime_error(str.str().c_str());
                         }
                     }
                 }
                 else if (cname == "AuthServer")
                 {
-                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    for (auto r = c->first_attribute(); !!r;
+                         r = r->next_attribute())
                     {
                         const std::string rname(r->name());
 
@@ -197,7 +206,8 @@ void Config::Reload()
                         else
                         {
                             std::stringstream str;
-                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            str << "Unexpected " << cname << " attribute \""
+                                << rname << "\"";
                             throw std::runtime_error(str.str().c_str());
                         }
                     }
@@ -206,7 +216,8 @@ void Config::Reload()
                 {
                     std::string consoleValue;
 
-                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    for (auto r = c->first_attribute(); !!r;
+                         r = r->next_attribute())
                     {
                         const std::string rname(r->name());
 
@@ -214,12 +225,15 @@ void Config::Reload()
                         {
                             consoleValue = std::string(r->value());
 
-                            std::transform(consoleValue.begin(), consoleValue.end(), consoleValue.begin(), ::toupper);
+                            std::transform(consoleValue.begin(),
+                                           consoleValue.end(),
+                                           consoleValue.begin(), ::toupper);
                         }
                         else
                         {
                             std::stringstream str;
-                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            str << "Unexpected " << cname << " attribute \""
+                                << rname << "\"";
                             throw std::runtime_error(str.str().c_str());
                         }
                     }
@@ -228,7 +242,8 @@ void Config::Reload()
                 }
                 else if (cname == "Fov")
                 {
-                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    for (auto r = c->first_attribute(); !!r;
+                         r = r->next_attribute())
                     {
                         const std::string rname(r->name());
 
@@ -238,24 +253,28 @@ void Config::Reload()
                             {
                                 ins.Fov = std::stof(r->value());
                             }
-                            catch (std::invalid_argument const &)
+                            catch (std::invalid_argument const&)
                             {
                                 std::stringstream str;
-                                str << "Failed to parse Fov string \"" << r->value() << "\" for \"" << ins.Name << "\"";
+                                str << "Failed to parse Fov string \""
+                                    << r->value() << "\" for \"" << ins.Name
+                                    << "\"";
                                 throw std::runtime_error(str.str().c_str());
                             }
                         }
                         else
                         {
                             std::stringstream str;
-                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            str << "Unexpected " << cname << " attribute \""
+                                << rname << "\"";
                             throw std::runtime_error(str.str().c_str());
                         }
                     }
                 }
                 else if (cname == "CLR")
                 {
-                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    for (auto r = c->first_attribute(); !!r;
+                         r = r->next_attribute())
                     {
                         const std::string rname(r->name());
 
@@ -268,7 +287,8 @@ void Config::Reload()
                         else
                         {
                             std::stringstream str;
-                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            str << "Unexpected " << cname << " attribute \""
+                                << rname << "\"";
                             throw std::runtime_error(str.str().c_str());
                         }
                     }
@@ -278,7 +298,8 @@ void Config::Reload()
                     fs::path dll_path {};
                     std::string dll_method {};
 
-                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    for (auto r = c->first_attribute(); !!r;
+                         r = r->next_attribute())
                     {
                         const std::string rname(r->name());
 
@@ -289,7 +310,8 @@ void Config::Reload()
                         else
                         {
                             std::stringstream str;
-                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            str << "Unexpected " << cname << " attribute \""
+                                << rname << "\"";
                             throw std::runtime_error(str.str().c_str());
                         }
                     }
@@ -299,7 +321,8 @@ void Config::Reload()
                 }
                 else if (cname == "Credentials")
                 {
-                    for (auto r = c->first_attribute(); !!r; r = r->next_attribute())
+                    for (auto r = c->first_attribute(); !!r;
+                         r = r->next_attribute())
                     {
                         const std::string rname(r->name());
 
@@ -310,7 +333,8 @@ void Config::Reload()
                         else
                         {
                             std::stringstream str;
-                            str << "Unexpected " << cname << " attribute \"" << rname << "\"";
+                            str << "Unexpected " << cname << " attribute \""
+                                << rname << "\"";
                             throw std::runtime_error(str.str().c_str());
                         }
                     }
@@ -340,12 +364,14 @@ void Config::Reload()
                 {
                     configValue = std::string(a->value());
 
-                    std::transform(configValue.begin(), configValue.end(), configValue.begin(), ::toupper);
+                    std::transform(configValue.begin(), configValue.end(),
+                                   configValue.begin(), ::toupper);
                 }
                 else
                 {
                     std::stringstream str;
-                    str << "Unexpected " << name << " attribute \"" << name << "\"";
+                    str << "Unexpected " << name << " attribute \"" << name
+                        << "\"";
                     throw std::runtime_error(str.str().c_str());
                 }
             }
@@ -355,7 +381,7 @@ void Config::Reload()
             else
             {
                 std::stringstream str;
-                str << "Unrecognized Config entry \"" << configName <<"\"";
+                str << "Unrecognized Config entry \"" << configName << "\"";
                 throw std::runtime_error(str.str().c_str());
             }
         }
@@ -368,13 +394,13 @@ void Config::Reload()
     }
 }
 
-bool Config::VerifyKey(const std::string &key)
+bool Config::VerifyKey(const std::string& key)
 {
     std::uint8_t keyRaw[AES_KEYLEN];
     ::memset(keyRaw, 0, sizeof(keyRaw));
     ::memcpy(keyRaw, key.c_str(), key.length());
 
-    for (auto &entry : entries)
+    for (auto& entry : entries)
     {
         if (entry.Password.empty())
             continue;
@@ -387,7 +413,8 @@ bool Config::VerifyKey(const std::string &key)
 
         // convert hex string into raw data inside the vector
         for (auto i = 0u; i < buffer.size(); ++i)
-            buffer[i] = HexCharsToByte(entry.Password[i * 2], entry.Password[i * 2 + 1]);
+            buffer[i] =
+                HexCharsToByte(entry.Password[i * 2], entry.Password[i * 2 + 1]);
 
         AES_ctx ctx;
         ZeroMemory(&ctx, sizeof(ctx));
@@ -417,7 +444,7 @@ bool Config::VerifyKey(const std::string &key)
         // check for magic string to verify correctness
         auto constexpr magicLen = sizeof(Magic) - 1;
 
-        const std::string pass(reinterpret_cast<const char *>(&buffer[0]));
+        const std::string pass(reinterpret_cast<const char*>(&buffer[0]));
 
         if (pass.substr(0, magicLen) != Magic)
             return false;

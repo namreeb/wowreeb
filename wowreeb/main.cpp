@@ -1,61 +1,61 @@
 /*
-    MIT License
+  MIT License
 
-    Copyright (c) 2018-2019 namreeb http://github.com/namreeb legal@namreeb.org
+  Copyright (c) 2018-2019 namreeb http://github.com/namreeb legal@namreeb.org
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 
 */
 
-#include "resource.h"
-#include "NotifyIconMgr.hpp"
-#include "NotifyIcon.hpp"
 #include "Config.hpp"
 #include "Injector.hpp"
-#include "PicoSHA2/picosha2.h"
 #include "InputWindow.hpp"
+#include "NotifyIcon.hpp"
+#include "NotifyIconMgr.hpp"
+#include "PicoSHA2/picosha2.h"
+#include "resource.h"
 #include "tiny-AES-c/aes.hpp"
 
-#include <thread>
+#include <ImageHlp.h>
+#include <Windows.h>
 #include <chrono>
-#include <string>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <iomanip>
-#include <cstdint>
-#include <vector>
 #include <memory>
-#include <Windows.h>
+#include <sstream>
+#include <string>
 #include <tchar.h>
-#include <ImageHlp.h>
+#include <thread>
+#include <vector>
 
-#pragma comment (lib, "imagehlp.lib")
+#pragma comment(lib, "imagehlp.lib")
 
-extern std::wstring make_wstring(const std::string &in);
+extern std::wstring make_wstring(const std::string& in);
 
 namespace
 {
 static constexpr char EnvEntry[] = "WOWREEB_ENTRY";
 static constexpr char EnvKey[] = "WOWREEB_KEY";
 
-std::vector<std::uint8_t> ReadFile(const fs::path &file)
+std::vector<std::uint8_t> ReadFile(const fs::path& file)
 {
     std::ifstream fd(file, std::ios::binary | std::ios::ate);
     const size_t size = static_cast<size_t>(fd.tellg());
@@ -64,25 +64,26 @@ std::vector<std::uint8_t> ReadFile(const fs::path &file)
     std::vector<std::uint8_t> result(size);
 
     if (size > 0)
-        fd.read(reinterpret_cast<char *>(&result[0]), result.size());
+        fd.read(reinterpret_cast<char*>(&result[0]), result.size());
 
     return std::move(result);
 }
 
-void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
+void Launch(const ConfigEntry& entry, bool clearWDB, const std::string& key)
 {
     // step 1: ensure exe exists
     if (!fs::exists(entry.Path))
         throw std::runtime_error("Exe file not found");
 
-    // step 2: determine whether the launcher and target binary are running in 32 bit mode
+    // step 2: determine whether the launcher and target binary are running in 32
+    // bit mode
     DWORD themType;
 
     if (!::GetBinaryTypeA(entry.Path.string().c_str(), &themType))
         throw std::runtime_error("GetBinaryType failed");
 
     const bool them32 = themType == SCS_32BIT_BINARY;
-    const bool us32 = sizeof(void *) == 4;
+    const bool us32 = sizeof(void*) == 4;
 
     // step 3: verify checksum, if present, only if the platform matches
     if (them32 == us32 && !!entry.SHA256[0])
@@ -101,7 +102,7 @@ void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
         throw std::runtime_error("wowreeb.dll not found");
 
     // step 5: ensure native dlls exists, if present
-    for (auto const &dll : entry.NativeDlls)
+    for (auto const& dll : entry.NativeDlls)
         if (!fs::exists(dll.first))
             throw std::runtime_error("Native DLL not found");
 
@@ -123,7 +124,7 @@ void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
             if (fs::exists(wdb2))
                 fs::remove_all(wdb2);
         }
-        catch (fs::filesystem_error const &)
+        catch (fs::filesystem_error const&)
         {
             throw std::runtime_error("Failed to clear cache folder");
         }
@@ -137,14 +138,16 @@ void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
     }
 
     // if we reach here it is because we need to run the other launcher executable
-    // so that we can inject the right dll.  find the launcher and setup the environment...
+    // so that we can inject the right dll.  find the launcher and setup the
+    // environment...
 
     auto const hmod = ::GetModuleHandle(nullptr);
     TCHAR path[MAX_PATH];
     ::GetModuleFileName(hmod, path, MAX_PATH);
 
     const fs::path exePath(path);
-    auto const exe = exePath.parent_path() / (us32 ? "wowreeb64.exe" : "wowreeb32.exe");
+    auto const exe =
+        exePath.parent_path() / (us32 ? "wowreeb64.exe" : "wowreeb32.exe");
 
     if (!fs::exists(exe))
     {
@@ -159,7 +162,8 @@ void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
     std::string envKey(EnvKey);
     envKey += "=" + key;
 
-    // step 9: setup environment so the other launcher executable knows not to load the GUI
+    // step 9: setup environment so the other launcher executable knows not to
+    // load the GUI
     _putenv(envEntry.c_str());
     _putenv(envKey.c_str());
 
@@ -170,7 +174,8 @@ void Launch(const ConfigEntry &entry, bool clearWDB, const std::string &key)
     ZeroMemory(&pi, sizeof(pi));
 
     // step 10: run the other launcher executable
-    if (!::CreateProcessA(exe.string().c_str(), nullptr, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi))
+    if (!::CreateProcessA(exe.string().c_str(), nullptr, nullptr, nullptr, FALSE,
+                          0, nullptr, nullptr, &si, &pi))
         throw std::runtime_error("CreateProcess failed");
 }
 
@@ -180,21 +185,23 @@ T RoundUp(T val, T mul)
     return mul * (1 + ((val - 1) / mul));
 }
 
-std::string DataToHex(const std::vector<std::uint8_t> &data)
+std::string DataToHex(const std::vector<std::uint8_t>& data)
 {
     std::stringstream str;
 
     str << std::hex << std::nouppercase << std::setfill('0');
 
-    for (auto const &c : data)
+    for (auto const& c : data)
         str << std::setw(2) << static_cast<std::uint32_t>(c);
 
     return str.str();
 }
 
-bool ReadAndEncryptPassword(HINSTANCE hInstance, int nCmdShow, std::string &key, std::string &result)
+bool ReadAndEncryptPassword(HINSTANCE hInstance, int nCmdShow, std::string& key,
+                            std::string& result)
 {
-    // if there are not already credentials in the config file, no key will have been input yet.  therefore we must read one.
+    // if there are not already credentials in the config file, no key will have
+    // been input yet.  therefore we must read one.
     if (key.empty())
     {
         InputWindow keyWindow(hInstance, nCmdShow, "Enter your desired key...");
@@ -211,7 +218,8 @@ bool ReadAndEncryptPassword(HINSTANCE hInstance, int nCmdShow, std::string &key,
 
     InputWindow passWindow(hInstance, nCmdShow, "Enter password to encrypt...");
 
-    // the only purpose of this is to give us a way to determine if the password is decrypted successfully later
+    // the only purpose of this is to give us a way to determine if the password
+    // is decrypted successfully later
     auto newPass = Config::Magic + passWindow.ReadKey();
 
     // window was aborted
@@ -226,12 +234,14 @@ bool ReadAndEncryptPassword(HINSTANCE hInstance, int nCmdShow, std::string &key,
     ZeroMemory(&ctx, sizeof(ctx));
     AES_init_ctx_iv(&ctx, keyRaw, Config::Iv);
 
-    std::vector<std::uint8_t> buffer(RoundUp(newPass.length(), static_cast<size_t>(AES_BLOCKLEN)));
+    std::vector<std::uint8_t> buffer(
+        RoundUp(newPass.length(), static_cast<size_t>(AES_BLOCKLEN)));
 
     ::memcpy(&buffer[0], newPass.c_str(), newPass.length());
 
     // PKCS7 padding
-    const std::uint8_t pad = static_cast<std::uint8_t>(buffer.size() - newPass.length());
+    const std::uint8_t pad =
+        static_cast<std::uint8_t>(buffer.size() - newPass.length());
 
     if (pad > 0)
         ::memset(&buffer[newPass.length()], pad, pad);
@@ -243,7 +253,7 @@ bool ReadAndEncryptPassword(HINSTANCE hInstance, int nCmdShow, std::string &key,
     return true;
 }
 
-bool SetClipboardText(const std::string &text)
+bool SetClipboardText(const std::string& text)
 {
     if (!::OpenClipboard(nullptr))
         return false;
@@ -263,14 +273,10 @@ bool SetClipboardText(const std::string &text)
 
     return true;
 }
-}
+} // namespace
 
-int CALLBACK WinMain(
-    _In_ HINSTANCE hInstance,
-    _In_ HINSTANCE hPrevInstance,
-    _In_ LPSTR     lpCmdLine,
-    _In_ int       nCmdShow
-)
+int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_ HINSTANCE hPrevInstance,
+                     _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
     Config config(_T("config.xml"));
 
@@ -278,9 +284,10 @@ int CALLBACK WinMain(
     {
         config.Reload();
     }
-    catch (std::runtime_error const &e)
+    catch (std::runtime_error const& e)
     {
-        ::MessageBoxA(nullptr, e.what(), "Configuration Parsing Error", MB_ICONERROR);
+        ::MessageBoxA(nullptr, e.what(), "Configuration Parsing Error",
+                      MB_ICONERROR);
         return EXIT_FAILURE;
     }
 
@@ -296,7 +303,7 @@ int CALLBACK WinMain(
     {
         bool needAuthentication = false;
 
-        for (auto const &entry : config.entries)
+        for (auto const& entry : config.entries)
         {
             if (!entry.Username.empty() && !entry.Password.empty())
             {
@@ -305,12 +312,14 @@ int CALLBACK WinMain(
             }
         }
 
-        // if some settings provide credentials, we must authenticate the user before we proceed
+        // if some settings provide credentials, we must authenticate the user
+        // before we proceed
         if (needAuthentication)
         {
             do
             {
-                InputWindow authWindow(hInstance, nCmdShow, "Enter your wowreeb key...");
+                InputWindow authWindow(hInstance, nCmdShow,
+                                       "Enter your wowreeb key...");
 
                 auto const key = authWindow.ReadKey();
 
@@ -330,7 +339,7 @@ int CALLBACK WinMain(
     {
         if (auto const envEntry = getenv(EnvEntry))
         {
-            for (auto const &entry : config.entries)
+            for (auto const& entry : config.entries)
             {
                 if (entry.Name == envEntry)
                 {
@@ -342,9 +351,11 @@ int CALLBACK WinMain(
 
         NotifyIconMgr iconMgr(hInstance);
 
-        auto icon = iconMgr.Create(LoadIcon(GetModuleHandle(nullptr), MAKEINTRESOURCE(IDI_ICON1)), _T("Wowreeb Launcher"));
+        auto icon = iconMgr.Create(
+            LoadIcon(GetModuleHandle(nullptr), MAKEINTRESOURCE(IDI_ICON1)),
+            _T("Wowreeb Launcher"));
 
-        for (auto const &entry : config.entries)
+        for (auto const& entry : config.entries)
         {
             icon->AddMenu(
 #ifdef UNICODE
@@ -352,25 +363,27 @@ int CALLBACK WinMain(
 #else
                 entry.Name.c_str(),
 #endif
-                [&entry, clearWDB = config.clearWDB, &key = config.key] ()
-            {
-                try
+                [&entry, clearWDB = config.clearWDB, &key = config.key]()
                 {
-                    Launch(entry, clearWDB, key);
-                }
-                catch (std::exception const &e)
-                {
-                    MessageBoxA(nullptr, e.what(), "Launch Exception", MB_ICONERROR);
-                }
-            });
+                    try
+                    {
+                        Launch(entry, clearWDB, key);
+                    }
+                    catch (std::exception const& e)
+                    {
+                        MessageBoxA(nullptr, e.what(), "Launch Exception",
+                                    MB_ICONERROR);
+                    }
+                });
         }
 
         icon->AddMenu(_T("-"));
 
         bool shutdown = false;
 
-        icon->AddMenu(_T("Encrypt Password"),
-            [hInstance, nCmdShow, &key = config.key] ()
+        icon->AddMenu(
+            _T("Encrypt Password"),
+            [hInstance, nCmdShow, &key = config.key]()
             {
                 std::string pw;
                 if (!ReadAndEncryptPassword(hInstance, nCmdShow, key, pw))
@@ -378,20 +391,22 @@ int CALLBACK WinMain(
 
                 if (!SetClipboardText(pw))
                 {
-                    ::MessageBoxA(nullptr, "Failed to set clipboard data", "Error", MB_ICONERROR);
+                    ::MessageBoxA(nullptr, "Failed to set clipboard data",
+                                  "Error", MB_ICONERROR);
                     return;
                 }
 
-                ::MessageBoxA(nullptr, "Encrypted password copied to clipboard", "Success!", MB_ICONINFORMATION);
+                ::MessageBoxA(nullptr, "Encrypted password copied to clipboard",
+                              "Success!", MB_ICONINFORMATION);
             });
 
-        icon->AddMenu(_T("Exit"), [&shutdown] () { shutdown = true; });
+        icon->AddMenu(_T("Exit"), [&shutdown]() { shutdown = true; });
 
         // TODO: might as well use this thread to poll the config file for changes
         while (!shutdown)
             std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-    catch (std::exception const &e)
+    catch (std::exception const& e)
     {
         ::MessageBoxA(nullptr, e.what(), "Exception", MB_ICONERROR);
         return EXIT_FAILURE;

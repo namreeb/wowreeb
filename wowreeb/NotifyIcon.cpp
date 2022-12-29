@@ -1,42 +1,44 @@
 /*
-    MIT License
+  MIT License
 
-    Copyright (c) 2018-2019 namreeb http://github.com/namreeb legal@namreeb.org
+  Copyright (c) 2018-2019 namreeb http://github.com/namreeb legal@namreeb.org
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 
 */
 
-#include "resource.h"
 #include "NotifyIcon.hpp"
 
-#include <cstdlib>
-#include <stdexcept>
-#include <functional>
-#include <vector>
-#include <Windows.h>
-#include <Shellapi.h>
-#include <strsafe.h>
-#include <Shlwapi.h>
-#include <tchar.h>
+#include "resource.h"
 
-NotifyIcon::NotifyIcon(HWND window, unsigned int id, HICON icon, const TCHAR *tip) : _window(window), _id(id)
+#include <Shellapi.h>
+#include <Shlwapi.h>
+#include <Windows.h>
+#include <cstdlib>
+#include <functional>
+#include <stdexcept>
+#include <strsafe.h>
+#include <tchar.h>
+#include <vector>
+
+NotifyIcon::NotifyIcon(HWND window, unsigned int id, HICON icon, const TCHAR* tip)
+    : _window(window), _id(id)
 {
     constexpr int maxId = (1 << IconBits) - 1;
 
@@ -93,11 +95,13 @@ void NotifyIcon::ToggleMenu()
         for (auto i = 0u; i < _menuEntries.size(); ++i)
         {
             if (_menuEntries[i].text[0] == '-' && _menuEntries[i].text[1] == '\0')
-                InsertMenu(menu, -1, MF_BYPOSITION|MF_SEPARATOR, 0, _menuEntries[i].text);
+                InsertMenu(menu, -1, MF_BYPOSITION | MF_SEPARATOR, 0,
+                           _menuEntries[i].text);
             else
             {
                 const UINT buttonId = baseButtonId | i;
-                InsertMenu(menu, -1, MF_BYPOSITION, buttonId, _menuEntries[i].text);
+                InsertMenu(menu, -1, MF_BYPOSITION, buttonId,
+                           _menuEntries[i].text);
             }
         }
     }
@@ -115,7 +119,8 @@ void NotifyIcon::ClearMenu()
     _menuEntries.clear();
 }
 
-void NotifyIcon::AddMenu(const TCHAR *text, std::function<void()> callback, int position)
+void NotifyIcon::AddMenu(const TCHAR* text, std::function<void()> callback,
+                         int position)
 {
     constexpr int maxEntries = (1 << MenuBits) - 1;
 
@@ -124,9 +129,10 @@ void NotifyIcon::AddMenu(const TCHAR *text, std::function<void()> callback, int 
     if (static_cast<int>(_menuEntries.size()) >= maxEntries)
         throw std::runtime_error("Too many menu entries");
 
-    auto const pos = (position >= static_cast<int>(_menuEntries.size()) || position < 0) ?
-        (_menuEntries.end()) :
-        (_menuEntries.begin() + position);
+    auto const pos =
+        (position >= static_cast<int>(_menuEntries.size()) || position < 0) ?
+            (_menuEntries.end()) :
+            (_menuEntries.begin() + position);
 
     _menuEntries.emplace(pos, text, callback);
 }
